@@ -36,6 +36,10 @@
       if(k==="class") e.className=v;
       else if(k==="html") e.innerHTML=v;
       else if(k.startsWith("on") && typeof v==="function") e.addEventListener(k.slice(2), v);
+      else if(typeof v==="boolean"){
+        if(k in e) e[k]=v;
+        if(v) e.setAttribute(k, "");
+      }
       else e.setAttribute(k,v);
     });
     children.forEach(c=>e.appendChild(typeof c==="string"?document.createTextNode(c):c));
