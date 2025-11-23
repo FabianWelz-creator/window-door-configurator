@@ -1,0 +1,13 @@
+{
+  "name": "window-door-configurator",
+  "version": "1.0.0",
+  "description": "Ein moderner Türen-Konfigurator als WordPress-Plugin für Schmitke Bauelemente. Kunden können Türmodelle, Maße, Kanten, Lichtausschnitte und Extras auswählen und die Konfiguration als E-Mail-Anfrage an den Betrieb senden.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests/el-helper.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

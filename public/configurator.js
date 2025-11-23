@@ -115,28 +115,29 @@
     }catch(e){ /* ignore */ }
   }
 
-  function el(tag, attrs={}, children=[]){
-    const e=document.createElement(tag);
+  function el(tag, attrs = {}, children = []) {
+    const e = document.createElement(tag);
 
-    Object.entries(attrs).forEach(([k,v])=>{
-      if(k==="class") e.className = v;
-      else if(k==="html") e.innerHTML=v;
-      else if(k.startsWith("on") && typeof v==="function") {
+    Object.entries(attrs).forEach(([k, v]) => {
+      if (k === "class") {
+        e.className = v;
+      } else if (k === "html") {
+        e.innerHTML = v;
+      } else if (k.startsWith("on") && typeof v === "function") {
+        // e.g. onchange -> "change"
         e.addEventListener(k.slice(2), v);
-      }
-      else if(k==="selected" || k==="checked" || k==="disabled") {
-        // Boolean attributes must only be set when true
-        if(v) e.setAttribute(k, "");
-      }
-      else if(v !== false && v !== null && v !== undefined) {
+      } else if (k === "selected" || k === "checked" || k === "disabled") {
+        // Boolean properties must be set directly
+        e[k] = !!v;
+      } else if (v !== false && v !== null && v !== undefined) {
         e.setAttribute(k, v);
       }
     });
 
-    children.forEach(c=>e.appendChild(typeof c==="string"
-      ? document.createTextNode(c)
-      : c
-    ));
+    children.forEach(c =>
+      e.appendChild(typeof c === "string" ? document.createTextNode(c) : c)
+    );
+
     return e;
   }
 
