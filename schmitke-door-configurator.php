@@ -1,15 +1,12 @@
 <?php
 /**
- * Plugin Name: Schmitke Türen Konfigurator (MVP) – v2.1
- * Description: Türen-Configurator als Shortcode mit übersichtlicher Admin-Verwaltung, WP-Mediathek für Bilder und Design-Optionen.
- * Version: 0.2.1
- * Author: fymito / Schmitke
- * Text Domain: schmitke-doors
+ * Core plugin logic for Schmitke Türen Konfigurator (MVP) – v2.1.
  */
 
 if (!defined('ABSPATH')) exit;
 
 class Schmitke_Doors_Configurator_V21 {
+    const VERSION = '0.2.1';
     const OPT_KEY = 'schmitke_doors_configurator_data_v21';
 
     public function __construct() {
@@ -75,11 +72,10 @@ class Schmitke_Doors_Configurator_V21 {
     }
 
     public function register_assets() {
-        wp_register_style('schmitke-doors-configurator', plugins_url('public/configurator.css', __FILE__), [], '0.2.1');
-        wp_register_script('schmitke-doors-configurator', plugins_url('public/configurator.js', __FILE__), [], '0.2.1', true);
+        wp_register_style('schmitke-doors-configurator', plugins_url('public/configurator.css', __FILE__), [], self::VERSION);
+        wp_register_script('schmitke-doors-configurator', plugins_url('public/configurator.js', __FILE__), [], self::VERSION, true);
 
-        $data = get_option(self::OPT_KEY);
-        if (!$data) $data = self::default_data();
+        $data = $this->get_config_data();
         if (!empty($data['models']) && is_array($data['models'])) {
             foreach ($data['models'] as &$m) {
                 if (empty($m['image']) && !empty($m['imageId'])) {
@@ -105,7 +101,7 @@ class Schmitke_Doors_Configurator_V21 {
         if ($hook !== 'settings_page_schmitke-doors-configurator') return;
         wp_enqueue_media();
         wp_enqueue_style('wp-color-picker');
-        wp_enqueue_script('schmitke-doors-admin', plugins_url('admin/admin.js', __FILE__), ['jquery','wp-color-picker'], '0.2.1', true);
+        wp_enqueue_script('schmitke-doors-admin', plugins_url('admin/admin.js', __FILE__), ['jquery','wp-color-picker'], self::VERSION, true);
         wp_enqueue_style('schmitke-doors-admin', plugins_url('admin/admin.css', __FILE__), [], '0.2.1');
     }
 
@@ -135,6 +131,9 @@ class Schmitke_Doors_Configurator_V21 {
         $clean = $input;
 
         $clean['email_to'] = isset($input['email_to']) ? sanitize_email($input['email_to']) : $defaults['email_to'];
+        if (empty($clean['email_to'])) {
+            $clean['email_to'] = $defaults['email_to'];
+        }
 
         $d = $input['design'] ?? [];
         $clean['design'] = [
@@ -188,22 +187,32 @@ class Schmitke_Doors_Configurator_V21 {
         $clean['frames'] = [];
         foreach (($input['frames'] ?? $defaults['frames']) as $f) {
             if (!is_array($f)) continue;
-            $clean['frames'][] = [
-                'code' => sanitize_text_field($f['code'] ?? ''),
-                'label' => sanitize_text_field($f['label'] ?? ''),
-            ];
+            $code = sanitize_text_field($f['code'] ?? '');
+            $label = sanitize_text_field($f['label'] ?? '');
+            if ($code || $label) {
+                $clean['frames'][] = [
+                    'code' => $code,
+                    'label' => $label,
+                ];
+            }
         }
+        if (empty($clean['frames'])) $clean['frames'] = $defaults['frames'];
 
         $clean['extras'] = [];
         foreach (($input['extras'] ?? $defaults['extras']) as $ex) {
             if (!is_array($ex)) continue;
-            $clean['extras'][] = [
-                'code' => sanitize_text_field($ex['code'] ?? ''),
-                'label' => sanitize_text_field($ex['label'] ?? ''),
-            ];
+            $code = sanitize_text_field($ex['code'] ?? '');
+            $label = sanitize_text_field($ex['label'] ?? '');
+            if ($code || $label) {
+                $clean['extras'][] = [
+                    'code' => $code,
+                    'label' => $label,
+                ];
+            }
         }
+        if (empty($clean['extras'])) $clean['extras'] = $defaults['extras'];
 
-        $clean['rules'] = $input['rules'] ?? $defaults['rules'];
+        $clean['rules'] = $this->sanitize_rules($input['rules'] ?? $defaults['rules'], $defaults['rules']);
         return $clean;
     }
 
@@ -212,10 +221,29 @@ class Schmitke_Doors_Configurator_V21 {
         return array_values(array_filter(array_map('intval', $parts)));
     }
 
+    private function sanitize_rules($raw, $defaults) {
+        $clean = ['constructionLabels' => []];
+        $labels = $raw['constructionLabels'] ?? $defaults['constructionLabels'] ?? [];
+        if (is_array($labels)) {
+            foreach ($labels as $key => $label) {
+                $clean['constructionLabels'][sanitize_key($key)] = sanitize_text_field($label);
+            }
+        }
+        if (empty($clean['constructionLabels'])) {
+            $clean['constructionLabels'] = $defaults['constructionLabels'] ?? [];
+        }
+        return $clean;
+    }
+
+    private function get_config_data() {
+        $raw = get_option(self::OPT_KEY);
+        if (!$raw) return self::default_data();
+        return $this->sanitize_data($raw);
+    }
+
     public function admin_page() {
         if (!current_user_can('manage_options')) return;
-        $data = get_option(self::OPT_KEY);
-        if (!$data) $data = self::default_data();
+        $data = $this->get_config_data();
         $opt = self::OPT_KEY;
         ?>
         <div class="wrap schmitke-admin">
@@ -422,5 +450,3 @@ class Schmitke_Doors_Configurator_V21 {
         return '<div id="schmitke-door-configurator"></div>';
     }
 }
-
-new Schmitke_Doors_Configurator_V21();
