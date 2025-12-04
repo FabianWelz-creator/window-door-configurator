@@ -19,10 +19,21 @@
   if(typeof d.cardRadius !== 'undefined') style.setProperty('--scc-card-radius', d.cardRadius+'px');
 
   const extrasMap = new Map((DATA.extras||[]).map(ex=>[ex.code, ex.label]));
+  const OPTIONS = DATA.options || {};
 
   function first(list, fallback){
     if(Array.isArray(list) && list.length) return list[0];
     return fallback;
+  }
+
+  const optionListFirstKey = (name) => {
+    const list = OPTIONS?.[name] || [];
+    return list[0]?.key || '';
+  };
+
+  function normalizeOptionKey(list, key){
+    if(!Array.isArray(list) || list.length===0) return '';
+    return list.some(o=>o.key===key) ? key : list[0].key;
   }
 
   function createDefaultConfig(){
@@ -38,7 +49,15 @@
       handleSide: 'links',
       glazing: first(model.glazingOptions, (DATA.glass?.[0]?.code || '')),
       frame: (DATA.frames?.[0]?.code || ''),
-      extras: new Set()
+      extras: new Set(),
+      typeKey: optionListFirstKey('type'),
+      manufacturerKey: optionListFirstKey('manufacturer'),
+      profileKey: optionListFirstKey('profile'),
+      formKey: optionListFirstKey('form'),
+      sashesKey: optionListFirstKey('sashes'),
+      openingKey: optionListFirstKey('opening'),
+      colorExteriorKey: optionListFirstKey('colorExterior'),
+      colorInteriorKey: optionListFirstKey('colorInterior')
     };
   }
 
@@ -57,7 +76,15 @@
       handleSide: cfg.handleSide === 'rechts' ? 'rechts' : 'links',
       glazing: cfg.glazing || glazingFallback,
       frame: cfg.frame || (DATA.frames?.[0]?.code || ''),
-      extras: new Set(cfg.extras || [])
+      extras: new Set(cfg.extras || []),
+      typeKey: normalizeOptionKey(OPTIONS.type, cfg.typeKey),
+      manufacturerKey: normalizeOptionKey(OPTIONS.manufacturer, cfg.manufacturerKey),
+      profileKey: normalizeOptionKey(OPTIONS.profile, cfg.profileKey),
+      formKey: normalizeOptionKey(OPTIONS.form, cfg.formKey),
+      sashesKey: normalizeOptionKey(OPTIONS.sashes, cfg.sashesKey),
+      openingKey: normalizeOptionKey(OPTIONS.opening, cfg.openingKey),
+      colorExteriorKey: normalizeOptionKey(OPTIONS.colorExterior, cfg.colorExteriorKey),
+      colorInteriorKey: normalizeOptionKey(OPTIONS.colorInterior, cfg.colorInteriorKey)
     };
   }
 
@@ -190,13 +217,24 @@
     return Array.from(cfg.extras).map(code=>extrasMap.get(code)||code).join(', ');
   }
 
+  function getOptionTitle(list, key){
+    const found = (list||[]).find(o=>o.key===key);
+    return found?.title || key || '–';
+  }
+
   function formatConfigLines(cfg, idxLabel){
     const mod = DATA.models[cfg.modelIndex] || {};
     return [
       `${idxLabel}: ${mod.name || 'Fenster'} (${mod.system || mod.family || ''})`,
+      `Typ: ${getOptionTitle(OPTIONS.type, cfg.typeKey)}`,
+      `Hersteller: ${getOptionTitle(OPTIONS.manufacturer, cfg.manufacturerKey)}`,
+      `Profil: ${getOptionTitle(OPTIONS.profile, cfg.profileKey)}`,
+      `Form: ${getOptionTitle(OPTIONS.form, cfg.formKey)}`,
+      `Flügel: ${getOptionTitle(OPTIONS.sashes, cfg.sashesKey)}`,
+      `Öffnungsart: ${getOptionTitle(OPTIONS.opening, cfg.openingKey)}`,
       `Material: ${cfg.material || mod.material || ''}`,
       `Maß: ${cfg.width} x ${cfg.height} mm ${cfg.specialSize? '(Sondermaß)':'(DIN)'}`,
-      `Öffnungsart: ${cfg.openingType} (${cfg.handleSide}-anschlag)` ,
+      `Bedienung: ${cfg.openingType} (${cfg.handleSide}-anschlag)` ,
       `Verglasung: ${cfg.glazing || 'k.A.'}`,
       `Rahmen: ${cfg.frame || ''}`,
       `Uw-Wert lt. Modell: ${mod.uw || 'k.A.'}`,
@@ -242,6 +280,21 @@
     render();
   }
 
+  function renderOptionGrid(optionsList, selectedKey, onSelect){
+    if(!Array.isArray(optionsList) || !optionsList.length){
+      return el("div",{class:"scc-note"},["Keine Optionen verfügbar."]);
+    }
+    return el("div",{class:"swc-option-grid"},
+      optionsList.map(option=>{
+        const card = el("div",{class:"swc-option-card" + (option.key===selectedKey?" sel":""),onclick:()=>{onSelect(option.key);}});
+        const img = option.image ? el("img",{src:option.image,alt:option.title||option.key,onerror:"this.style.display='none'"}) : el("div",{class:"swc-option-placeholder"});
+        const title = el("div",{class:"swc-option-title"},[option.title || option.key || "Option"]);
+        card.append(img,title);
+        return card;
+      })
+    );
+  }
+
   function render(){
     saveState();
     syncUrlWithCurrent();
@@ -249,6 +302,13 @@
     root.innerHTML="";
     const m = DATA.models[state.current.modelIndex];
     if(!m) return;
+
+    const typeGrid = renderOptionGrid(OPTIONS.type, state.current.typeKey, (key)=>{state.current.typeKey=key; render();});
+    const manufacturerGrid = renderOptionGrid(OPTIONS.manufacturer, state.current.manufacturerKey, (key)=>{state.current.manufacturerKey=key; render();});
+    const profileGrid = renderOptionGrid(OPTIONS.profile, state.current.profileKey, (key)=>{state.current.profileKey=key; render();});
+    const formGrid = renderOptionGrid(OPTIONS.form, state.current.formKey, (key)=>{state.current.formKey=key; render();});
+    const sashesGrid = renderOptionGrid(OPTIONS.sashes, state.current.sashesKey, (key)=>{state.current.sashesKey=key; render();});
+    const openingGrid = renderOptionGrid(OPTIONS.opening, state.current.openingKey, (key)=>{state.current.openingKey=key; render();});
 
     const modelsGrid = el("div",{class:"scc-models scc-window-models"},
       DATA.models.map((mod,idx)=>{
@@ -326,11 +386,17 @@
 
     const summary = el("div",{class:"scc-summary scc-window-summary"},[
       el("h4",{},[editingIndex!==null ? `Position ${editingIndex+1} bearbeiten` : "Ihre Fenster-Konfiguration"]),
+      el("div",{},["Typ: ", getOptionTitle(OPTIONS.type, state.current.typeKey)]),
+      el("div",{},["Hersteller: ", getOptionTitle(OPTIONS.manufacturer, state.current.manufacturerKey)]),
+      el("div",{},["Profil: ", getOptionTitle(OPTIONS.profile, state.current.profileKey)]),
+      el("div",{},["Form: ", getOptionTitle(OPTIONS.form, state.current.formKey)]),
+      el("div",{},["Flügel: ", getOptionTitle(OPTIONS.sashes, state.current.sashesKey)]),
+      el("div",{},["Öffnungsart: ", getOptionTitle(OPTIONS.opening, state.current.openingKey)]),
       el("div",{},["Modell: ", el("strong",{},[m.name]), " (", m.system || m.family || "", ")"]),
       el("div",{},["Material: ", state.current.material || m.material || "–"]),
       el("div",{},["Uw-Wert lt. Modell: ", m.uw || "k.A."] ),
       el("div",{},["Fenstermaß: ", state.current.width+" × "+state.current.height+" mm", state.current.specialSize?" (Sondermaß)":" (DIN)"]),
-      el("div",{},["Öffnungsart: ", state.current.openingType, " · Griff ", state.current.handleSide]),
+      el("div",{},["Bedienung: ", state.current.openingType, " · Griff ", state.current.handleSide]),
       el("div",{},["Verglasung: ", state.current.glazing || "–"]),
       el("div",{},["Rahmen: ", state.current.frame || "–"]),
       el("div",{},["Extras: ", formatExtras(state.current)]),
@@ -358,11 +424,17 @@
           ])
         ]),
         el("div",{class:"scc-position-info"},[
+          el("div",{},["Typ: ", getOptionTitle(OPTIONS.type, cfg.typeKey)]),
+          el("div",{},["Hersteller: ", getOptionTitle(OPTIONS.manufacturer, cfg.manufacturerKey)]),
+          el("div",{},["Profil: ", getOptionTitle(OPTIONS.profile, cfg.profileKey)]),
+          el("div",{},["Form: ", getOptionTitle(OPTIONS.form, cfg.formKey)]),
+          el("div",{},["Flügel: ", getOptionTitle(OPTIONS.sashes, cfg.sashesKey)]),
+          el("div",{},["Öffnungsart: ", getOptionTitle(OPTIONS.opening, cfg.openingKey)]),
           el("div",{},["System: ", mod.system || mod.family || "–"]),
           el("div",{},["Modell: ", mod.name || "–"]),
           el("div",{},["Material: ", cfg.material || mod.material || "–"]),
           el("div",{},["Maße: ", `${cfg.width} × ${cfg.height} mm`, cfg.specialSize?" (Sondermaß)":" (DIN)"]),
-          el("div",{},["Öffnungsart: ", cfg.openingType || "–", ", Griff ", cfg.handleSide]),
+          el("div",{},["Bedienung: ", cfg.openingType || "–", ", Griff ", cfg.handleSide]),
           el("div",{},["Verglasung: ", cfg.glazing || "–"]),
           el("div",{},["Rahmen: ", cfg.frame || "–"]),
           el("div",{},["Extras: ", formatExtras(cfg)])
@@ -398,12 +470,28 @@
       }catch(e){alert("Kopieren nicht möglich. Bitte manuell markieren.");}
     }},["Konfiguration kopieren"]);
 
+    const optionsCard = el("div",{class:"scc-card scc-window-card"},[
+      el("div",{class:"scc-h"},["Typ"]),
+      typeGrid,
+      el("div",{class:"scc-h",style:"margin-top:14px"},["Hersteller"]),
+      manufacturerGrid,
+      el("div",{class:"scc-h",style:"margin-top:14px"},["Profil"]),
+      profileGrid,
+      el("div",{class:"scc-h",style:"margin-top:14px"},["Bauform"]),
+      el("div",{class:"scc-sub"},["Form"]),
+      formGrid,
+      el("div",{class:"scc-sub",style:"margin-top:10px"},["Flügel"]),
+      sashesGrid,
+      el("div",{class:"scc-sub",style:"margin-top:10px"},["Öffnungsart"]),
+      openingGrid
+    ]);
+
     const left = el("div",{class:"scc-card scc-window-card"},[
-      el("div",{class:"scc-h"},["1) Fenster-Modell wählen"]),
+      el("div",{class:"scc-h"},["Fenster-Modell wählen"]),
       el("div",{class:"scc-sub"},["Bestseller-Fenster aus den Schmitke-Prospekten."]),
       modelsGrid,
       el("hr",{style:"border:none;border-top:1px solid #eee;margin:14px 0"}),
-      el("div",{class:"scc-h"},["2) Maße & Öffnungsart"]),
+      el("div",{class:"scc-h"},["Maße & Öffnungsart"]),
       el("div",{class:"scc-row"},[
         el("div",{},[el("label",{},["DIN-Breite"]), widthSelect]),
         el("div",{},[el("label",{},["DIN-Höhe"]), heightSelect])
@@ -433,8 +521,10 @@
       el("div",{class:"scc-cta"},[btnMail, btnCopy])
     ]);
 
+    const leftColumn = el("div",{},[optionsCard, left]);
+
     root.appendChild(el("div",{class:"scc-wrap scc-window-wrap"},[
-      el("div",{class:"scc-grid scc-window-grid"},[left,right])
+      el("div",{class:"scc-grid scc-window-grid"},[leftColumn,right])
     ]));
 
     widthSelect.onchange=e=>{state.current.specialSize=false; state.current.width=Number(e.target.value); render();};

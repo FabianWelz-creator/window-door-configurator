@@ -50,3 +50,9 @@ select,input[type="number"],input[type="text"]{width:100%;padding:10px;border:1p
 .scc-position-info{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:13px}
 @media(max-width:700px){.scc-position-info{grid-template-columns:1fr}}
 .scc-reset{font-size:12px;color:var(--scc-text);text-decoration:underline;cursor:pointer}
+.swc-option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.swc-option-card{border:1px solid #e2e2e2;border-radius:12px;overflow:hidden;cursor:pointer;transition:.15s;background:#fafafa;display:flex;flex-direction:column;height:100%}
+.swc-option-card.sel{outline:3px solid var(--scc-primary);border-color:var(--scc-primary);background:#fff}
+.swc-option-card img,.swc-option-placeholder{width:100%;height:110px;object-fit:cover;display:block;background:#ddd}
+.swc-option-placeholder{background:#d6d6d6}
+.swc-option-title{padding:8px;font-weight:700;font-size:14px;flex:1}
