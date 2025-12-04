@@ -26,6 +26,21 @@
     return fallback;
   }
 
+  function getAvailableInteriorColors(exteriorKey){
+    const exteriorList = OPTIONS.colorExterior || [];
+    const exteriorColor = exteriorList.find(o=>o.key===exteriorKey);
+    const whiteColor = exteriorList.find(o=>o.key==="weiss_glatt");
+
+    if(exteriorColor?.key === "weiss_glatt"){
+      return whiteColor ? [whiteColor] : [];
+    }
+
+    const result = [];
+    if(exteriorColor) result.push(exteriorColor);
+    if(whiteColor) result.push(whiteColor);
+    return result;
+  }
+
   const optionListFirstKey = (name) => {
     const list = OPTIONS?.[name] || [];
     return list[0]?.key || '';
@@ -39,6 +54,8 @@
   function createDefaultConfig(){
     const modelIndex = 0;
     const model = DATA.models[modelIndex] || {};
+    const defaultExterior = optionListFirstKey('colorExterior');
+    const defaultInterior = getAvailableInteriorColors(defaultExterior)[0]?.key || optionListFirstKey('colorInterior');
     return {
       modelIndex,
       width: (DATA.sizes?.dinWidthsMm || [1000])[0] || 0,
@@ -56,8 +73,8 @@
       formKey: optionListFirstKey('form'),
       sashesKey: optionListFirstKey('sashes'),
       openingKey: optionListFirstKey('opening'),
-      colorExteriorKey: optionListFirstKey('colorExterior'),
-      colorInteriorKey: optionListFirstKey('colorInterior')
+      colorExteriorKey: defaultExterior,
+      colorInteriorKey: defaultInterior
     };
   }
 
@@ -66,7 +83,7 @@
     const model = DATA.models[modelIndex] || {};
     const openingFallback = first(model.openingTypes, first(DATA.openingTypes, 'Dreh-Kipp'));
     const glazingFallback = first(model.glazingOptions, (DATA.glass?.[0]?.code || ''));
-    return {
+    const result = {
       modelIndex,
       width: Number(cfg.width) || (DATA.sizes?.dinWidthsMm||[0])[0] || 0,
       height: Number(cfg.height)|| (DATA.sizes?.dinHeightsMm||[0])[0] || 0,
@@ -83,9 +100,12 @@
       formKey: normalizeOptionKey(OPTIONS.form, cfg.formKey),
       sashesKey: normalizeOptionKey(OPTIONS.sashes, cfg.sashesKey),
       openingKey: normalizeOptionKey(OPTIONS.opening, cfg.openingKey),
-      colorExteriorKey: normalizeOptionKey(OPTIONS.colorExterior, cfg.colorExteriorKey),
-      colorInteriorKey: normalizeOptionKey(OPTIONS.colorInterior, cfg.colorInteriorKey)
+      colorExteriorKey: normalizeOptionKey(OPTIONS.colorExterior, cfg.colorExteriorKey)
     };
+    const interiorOptions = getAvailableInteriorColors(result.colorExteriorKey);
+    const preferredInterior = result.colorExteriorKey === 'weiss_glatt' ? 'weiss_glatt' : result.colorExteriorKey;
+    result.colorInteriorKey = normalizeOptionKey(interiorOptions, cfg.colorInteriorKey || preferredInterior);
+    return result;
   }
 
   function toSerializable(cfg){
@@ -237,6 +257,8 @@
       `Bedienung: ${cfg.openingType} (${cfg.handleSide}-anschlag)` ,
       `Verglasung: ${cfg.glazing || 'k.A.'}`,
       `Rahmen: ${cfg.frame || ''}`,
+      `Außenfarbe: ${getOptionTitle(OPTIONS.colorExterior, cfg.colorExteriorKey)}`,
+      `Innenfarbe: ${getOptionTitle(getAvailableInteriorColors(cfg.colorExteriorKey), cfg.colorInteriorKey)}`,
       `Uw-Wert lt. Modell: ${mod.uw || 'k.A.'}`,
       `Extras: ${formatExtras(cfg)}`
     ].join('\n');
@@ -309,6 +331,23 @@
     const formGrid = renderOptionGrid(OPTIONS.form, state.current.formKey, (key)=>{state.current.formKey=key; render();});
     const sashesGrid = renderOptionGrid(OPTIONS.sashes, state.current.sashesKey, (key)=>{state.current.sashesKey=key; render();});
     const openingGrid = renderOptionGrid(OPTIONS.opening, state.current.openingKey, (key)=>{state.current.openingKey=key; render();});
+    const availableInteriorColors = getAvailableInteriorColors(state.current.colorExteriorKey);
+    if(!availableInteriorColors.some(o=>o.key===state.current.colorInteriorKey)){
+      const fallback = state.current.colorExteriorKey === 'weiss_glatt' ? 'weiss_glatt' : state.current.colorExteriorKey;
+      state.current.colorInteriorKey = normalizeOptionKey(availableInteriorColors, fallback);
+    }
+    const colorExteriorGrid = renderOptionGrid(OPTIONS.colorExterior, state.current.colorExteriorKey, (key)=>{
+      state.current.colorExteriorKey = key;
+      const interiorList = getAvailableInteriorColors(key);
+      const preferred = key === 'weiss_glatt' ? 'weiss_glatt' : key;
+      let nextInterior = state.current.colorInteriorKey;
+      if(!interiorList.some(o=>o.key===nextInterior)){
+        nextInterior = normalizeOptionKey(interiorList, preferred);
+      }
+      state.current.colorInteriorKey = nextInterior;
+      render();
+    });
+    const colorInteriorGrid = renderOptionGrid(availableInteriorColors, state.current.colorInteriorKey, (key)=>{state.current.colorInteriorKey=key; render();});
 
     const modelsGrid = el("div",{class:"scc-models scc-window-models"},
       DATA.models.map((mod,idx)=>{
@@ -392,6 +431,8 @@
       el("div",{},["Form: ", getOptionTitle(OPTIONS.form, state.current.formKey)]),
       el("div",{},["Flügel: ", getOptionTitle(OPTIONS.sashes, state.current.sashesKey)]),
       el("div",{},["Öffnungsart: ", getOptionTitle(OPTIONS.opening, state.current.openingKey)]),
+      el("div",{},["Außenfarbe: ", getOptionTitle(OPTIONS.colorExterior, state.current.colorExteriorKey)]),
+      el("div",{},["Innenfarbe: ", getOptionTitle(getAvailableInteriorColors(state.current.colorExteriorKey), state.current.colorInteriorKey)]),
       el("div",{},["Modell: ", el("strong",{},[m.name]), " (", m.system || m.family || "", ")"]),
       el("div",{},["Material: ", state.current.material || m.material || "–"]),
       el("div",{},["Uw-Wert lt. Modell: ", m.uw || "k.A."] ),
@@ -430,6 +471,7 @@
           el("div",{},["Form: ", getOptionTitle(OPTIONS.form, cfg.formKey)]),
           el("div",{},["Flügel: ", getOptionTitle(OPTIONS.sashes, cfg.sashesKey)]),
           el("div",{},["Öffnungsart: ", getOptionTitle(OPTIONS.opening, cfg.openingKey)]),
+          el("div",{},["Farbkombination: außen ", getOptionTitle(OPTIONS.colorExterior, cfg.colorExteriorKey), ", innen ", getOptionTitle(getAvailableInteriorColors(cfg.colorExteriorKey), cfg.colorInteriorKey)]),
           el("div",{},["System: ", mod.system || mod.family || "–"]),
           el("div",{},["Modell: ", mod.name || "–"]),
           el("div",{},["Material: ", cfg.material || mod.material || "–"]),
@@ -483,7 +525,12 @@
       el("div",{class:"scc-sub",style:"margin-top:10px"},["Flügel"]),
       sashesGrid,
       el("div",{class:"scc-sub",style:"margin-top:10px"},["Öffnungsart"]),
-      openingGrid
+      openingGrid,
+      el("div",{class:"scc-h",style:"margin-top:14px"},["Farben"]),
+      el("div",{class:"scc-sub"},["Außenfarbe"]),
+      colorExteriorGrid,
+      el("div",{class:"scc-sub",style:"margin-top:10px"},["Innenfarbe"]),
+      colorInteriorGrid
     ]);
 
     const left = el("div",{class:"scc-card scc-window-card"},[
