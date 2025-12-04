@@ -336,7 +336,7 @@ class Schmitke_Doors_Configurator_V21 {
                                 if (!$imagePreview && !empty($m['image'])) $imagePreview = esc_url($m['image']);
                                 $laRaw = is_array($m['laOptions']) ? implode(',', $m['laOptions']) : '';
                             ?>
-                            <div class="schmitke-model-card">
+                            <div class="schmitke-card schmitke-model-card">
                                 <div class="schmitke-model-head">
                                     <div>
                                         <strong class="schmitke-model-title"><?php echo esc_html($m['family'].' – '.$m['name']); ?></strong>
@@ -417,7 +417,7 @@ class Schmitke_Doors_Configurator_V21 {
         </div>
 
         <script type="text/template" id="schmitke-model-template">
-            <div class="schmitke-model-card">
+            <div class="schmitke-card schmitke-model-card">
                 <div class="schmitke-model-head">
                     <div>
                         <strong class="schmitke-model-title">Neues Modell</strong>
@@ -449,11 +449,11 @@ class Schmitke_Doors_Configurator_V21 {
                             <input type="text" name="<?php echo esc_attr($opt); ?>[models][__i__][laOptionsRaw]" value="ohne LA">
                         </label>
 
-                        <div class="schmitke-image-field">
-                            <label>Bild (WP-Mediathek)</label>
-                            <div class="schmitke-image-row">
-                                <img class="schmitke-image-preview" src="" alt="" />
-                                <div class="schmitke-image-buttons">
+        <div class="schmitke-image-field">
+            <label>Bild (WP-Mediathek)</label>
+            <div class="schmitke-image-row">
+                <img class="schmitke-image-preview" src="" alt="" />
+                <div class="schmitke-image-buttons">
                                     <button type="button" class="button schmitke-pick-image">Bild wählen</button>
                                     <button type="button" class="button schmitke-clear-image">Entfernen</button>
                                 </div>
@@ -467,7 +467,7 @@ class Schmitke_Doors_Configurator_V21 {
                 </div>
             </div>
         </script>
-        <?php
+                <?php
     }
 
     public function shortcode($atts) {
@@ -1041,7 +1041,7 @@ class Schmitke_Windows_Configurator {
                                 if (!empty($m['imageId'])) $imagePreview = wp_get_attachment_image_url(intval($m['imageId']), 'thumbnail');
                                 if (!$imagePreview && !empty($m['image'])) $imagePreview = esc_url($m['image']);
                             ?>
-                            <div class="schmitke-model-card">
+                            <div class="schmitke-card schmitke-model-card">
                                 <div class="schmitke-model-head">
                                     <div>
                                         <strong class="schmitke-model-title"><?php echo esc_html(($m['family'] ?? '') . ' – ' . ($m['name'] ?? '')); ?></strong>
@@ -1182,12 +1182,114 @@ class Schmitke_Windows_Configurator {
                     </table>
                 </div>
 
+                <?php
+                $optionGroups = [
+                    'type' => 'Typ',
+                    'manufacturer' => 'Hersteller',
+                    'profile' => 'Profil',
+                    'form' => 'Form',
+                    'sashes' => 'Flügel',
+                    'opening' => 'Öffnungsart',
+                    'colorExterior' => 'Außenfarben',
+                    'colorInterior' => 'Innenfarben',
+                ];
+                ?>
+
+                <div class="schmitke-section">
+                    <h2>Fenster-Optionen</h2>
+                    <div class="schmitke-option-accordion">
+                        <?php foreach ($optionGroups as $groupKey => $groupLabel): ?>
+                            <?php $optionsList = $data['options'][$groupKey] ?? []; ?>
+                            <div class="schmitke-option-panel open" data-group="<?php echo esc_attr($groupKey); ?>">
+                                <button type="button" class="button schmitke-option-toggle" aria-expanded="true">
+                                    <?php echo esc_html($groupLabel); ?>
+                                    <span class="schmitke-option-toggle-icon">▼</span>
+                                </button>
+                                <div class="schmitke-option-panel-body">
+                                    <div class="schmitke-option-list" data-group="<?php echo esc_attr($groupKey); ?>">
+                                        <?php foreach ($optionsList as $i => $option): ?>
+                                            <?php
+                                                $imagePreview = '';
+                                                if (!empty($option['image'])) $imagePreview = $option['image'];
+                                                elseif (!empty($option['imageId'])) {
+                                                    $u = wp_get_attachment_image_url(intval($option['imageId']), 'thumbnail');
+                                                    if ($u) $imagePreview = $u;
+                                                }
+                                            ?>
+                                            <div class="schmitke-card schmitke-option-card">
+                                                <div class="schmitke-card-head">
+                                                    <div>
+                                                        <strong class="schmitke-card-title"><?php echo esc_html($option['title'] ?? 'Option'); ?></strong>
+                                                        <?php
+                                                        $subParts = array_filter([
+                                                            $option['key'] ?? '',
+                                                            $option['subtitle'] ?? ''
+                                                        ], function($p) { return $p !== ''; });
+                                                        ?>
+                                                        <div class="schmitke-card-sub"><?php echo esc_html(implode(' – ', $subParts)); ?></div>
+                                                    </div>
+                                                    <div class="schmitke-model-actions">
+                                                        <button type="button" class="button schmitke-toggle">Öffnen</button>
+                                                        <button type="button" class="button button-link-delete schmitke-remove">Löschen</button>
+                                                    </div>
+                                                </div>
+
+                                                <div class="schmitke-model-body">
+                                                    <div class="schmitke-model-grid">
+                                                        <label>Key (Slug)
+                                                            <input type="text" name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][<?php echo $i; ?>][key]"
+                                                                   value="<?php echo esc_attr($option['key'] ?? ''); ?>">
+                                                        </label>
+                                                        <label>Titel
+                                                            <input type="text" name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][<?php echo $i; ?>][title]"
+                                                                   value="<?php echo esc_attr($option['title'] ?? ''); ?>">
+                                                        </label>
+                                                        <label>Untertitel
+                                                            <input type="text" name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][<?php echo $i; ?>][subtitle]"
+                                                                   value="<?php echo esc_attr($option['subtitle'] ?? ''); ?>">
+                                                        </label>
+                                                        <label>Beschreibung
+                                                            <textarea name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][<?php echo $i; ?>][description]" rows="3"><?php echo esc_textarea($option['description'] ?? ''); ?></textarea>
+                                                        </label>
+
+                                                        <div class="schmitke-image-field">
+                                                            <label>Bild (WP-Mediathek)</label>
+                                                            <div class="schmitke-image-row">
+                                                                <img class="schmitke-image-preview" src="<?php echo esc_url($imagePreview); ?>" alt="" />
+                                                                <div class="schmitke-image-buttons">
+                                                                    <button type="button" class="button schmitke-pick-image">Bild wählen</button>
+                                                                    <button type="button" class="button schmitke-clear-image">Entfernen</button>
+                                                                </div>
+                                                            </div>
+                                                            <input type="hidden" class="schmitke-image-id"
+                                                                   name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][<?php echo $i; ?>][imageId]"
+                                                                   value="<?php echo esc_attr($option['imageId'] ?? 0); ?>">
+                                                            <input type="hidden" class="schmitke-image-url"
+                                                                   name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][<?php echo $i; ?>][image]"
+                                                                   value="<?php echo esc_attr($option['image'] ?? ''); ?>">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+
+                                    <p><button type="button" class="button button-secondary schmitke-add-option"
+                                               id="schmitke-window-add-option-<?php echo esc_attr($groupKey); ?>"
+                                               data-group="<?php echo esc_attr($groupKey); ?>"
+                                               data-template="#schmitke-window-option-template-<?php echo esc_attr($groupKey); ?>">+ Element hinzufügen</button></p>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
                 <?php submit_button(); ?>
             </form>
         </div>
 
         <script type="text/template" id="schmitke-model-template">
-            <div class="schmitke-model-card">
+            <div class="schmitke-card schmitke-model-card">
                 <div class="schmitke-model-head">
                     <div>
                         <strong class="schmitke-model-title">Neues Modell</strong>
@@ -1246,6 +1348,53 @@ class Schmitke_Windows_Configurator {
                 </div>
             </div>
         </script>
+        <?php foreach ($optionGroups as $groupKey => $groupLabel): ?>
+            <script type="text/template" id="schmitke-window-option-template-<?php echo esc_attr($groupKey); ?>">
+                <div class="schmitke-card schmitke-option-card">
+                    <div class="schmitke-card-head">
+                        <div>
+                            <strong class="schmitke-card-title"><?php echo esc_html($groupLabel); ?> Option</strong>
+                            <div class="schmitke-card-sub"></div>
+                        </div>
+                        <div class="schmitke-model-actions">
+                            <button type="button" class="button schmitke-toggle">Öffnen</button>
+                            <button type="button" class="button button-link-delete schmitke-remove">Löschen</button>
+                        </div>
+                    </div>
+                    <div class="schmitke-model-body">
+                        <div class="schmitke-model-grid">
+                            <label>Key (Slug)
+                                <input type="text" name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][__i__][key]" value="">
+                            </label>
+                            <label>Titel
+                                <input type="text" name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][__i__][title]" value="">
+                            </label>
+                            <label>Untertitel
+                                <input type="text" name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][__i__][subtitle]" value="">
+                            </label>
+                            <label>Beschreibung
+                                <textarea name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][__i__][description]" rows="3"></textarea>
+                            </label>
+
+                            <div class="schmitke-image-field">
+                                <label>Bild (WP-Mediathek)</label>
+                                <div class="schmitke-image-row">
+                                    <img class="schmitke-image-preview" src="" alt="" />
+                                    <div class="schmitke-image-buttons">
+                                        <button type="button" class="button schmitke-pick-image">Bild wählen</button>
+                                        <button type="button" class="button schmitke-clear-image">Entfernen</button>
+                                    </div>
+                                </div>
+                                <input type="hidden" class="schmitke-image-id"
+                                       name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][__i__][imageId]" value="0">
+                                <input type="hidden" class="schmitke-image-url"
+                                       name="<?php echo esc_attr($opt); ?>[options][<?php echo esc_attr($groupKey); ?>][__i__][image]" value="">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </script>
+        <?php endforeach; ?>
         <?php
     }
 

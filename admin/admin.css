@@ -2,20 +2,29 @@
 .schmitke-admin .schmitke-section{background:#fff;border:1px solid #e6e6e6;border-radius:10px;padding:16px;margin:16px 0}
 .schmitke-design-grid{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:12px}
 .schmitke-din-grid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:12px}
-#schmitke-model-list{display:flex;flex-direction:column;gap:12px}
-.schmitke-model-card{border:1px solid #e2e2e2;border-radius:12px;background:#fafafa;overflow:hidden}
-.schmitke-model-head{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#fff;border-bottom:1px solid #eee}
-.schmitke-model-title{font-size:14px}
-.schmitke-model-sub{font-size:12px;color:#666;margin-top:2px}
+#schmitke-model-list,.schmitke-option-list{display:flex;flex-direction:column;gap:12px}
+.schmitke-card{border:1px solid #e2e2e2;border-radius:12px;background:#fafafa;overflow:hidden}
+.schmitke-model-card{background:#fafafa}
+.schmitke-card-head,.schmitke-model-head{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#fff;border-bottom:1px solid #eee}
+.schmitke-card-title,.schmitke-model-title{font-size:14px}
+.schmitke-card-sub,.schmitke-model-sub{font-size:12px;color:#666;margin-top:2px}
 .schmitke-model-actions{display:flex;gap:6px}
 .schmitke-model-body{display:none;padding:12px}
-.schmitke-model-card.open .schmitke-model-body{display:block}
+.schmitke-card.open .schmitke-model-body,.schmitke-model-card.open .schmitke-model-body{display:block}
 .schmitke-model-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:10px}
 .schmitke-image-field{grid-column:1/-1}
 .schmitke-image-row{display:flex;align-items:center;gap:12px;margin-top:6px}
 .schmitke-image-preview{width:90px;height:90px;border-radius:8px;object-fit:cover;background:#ddd;border:1px solid #ccc}
 .schmitke-image-buttons{display:flex;gap:6px}
 .schmitke-color{width:120px}
+.schmitke-option-accordion{display:flex;flex-direction:column;gap:12px}
+.schmitke-option-panel{border:1px solid #e2e2e2;border-radius:12px;background:#fdfdfd;overflow:hidden}
+.schmitke-option-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;font-size:16px;border:0;background:#fff;border-bottom:1px solid #ededed;cursor:pointer}
+.schmitke-option-toggle:focus{outline:2px solid #2271b1;outline-offset:-2px}
+.schmitke-option-toggle-icon{font-size:12px}
+.schmitke-option-panel-body{padding:12px;display:none}
+.schmitke-option-panel.open .schmitke-option-panel-body{display:block}
+.schmitke-option-panel.open .schmitke-option-toggle-icon{transform:rotate(180deg)}
 @media(max-width:900px){
   .schmitke-design-grid{grid-template-columns:1fr 1fr}
   .schmitke-model-grid{grid-template-columns:1fr}
