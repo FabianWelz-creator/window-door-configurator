@@ -479,3 +479,524 @@ class Schmitke_Doors_Configurator_V21 {
 }
 
 new Schmitke_Doors_Configurator_V21();
+
+class Schmitke_Windows_Configurator {
+    const OPT_KEY = 'schmitke_windows_configurator_data';
+
+    public function __construct() {
+        add_action('admin_menu', [$this, 'admin_menu']);
+        add_action('admin_init', [$this, 'register_settings']);
+        add_shortcode('schmitke_windows_configurator', [$this, 'shortcode']);
+        add_action('wp_enqueue_scripts', [$this, 'register_assets']);
+        add_action('wp_enqueue_scripts', [$this, 'maybe_enqueue_assets'], 20);
+        add_action('admin_enqueue_scripts', [$this, 'admin_assets']);
+    }
+
+    public static function default_data() {
+        return [
+            'email_to' => 'info@schmitke-bauelemente.de',
+            'design' => [
+                'primaryColor' => '#111111',
+                'accentColor'  => '#f2f2f2',
+                'textColor'    => '#111111',
+                'borderColor'  => '#e7e7e7',
+                'fontFamily'   => 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
+                'buttonRadius' => 10,
+                'cardRadius'   => 14
+            ],
+            'models' => [
+                [
+                    'family' => 'Classic',
+                    'name' => 'Classic 70',
+                    'materialDefault' => 'alu',
+                    'frameDefault' => 'classic',
+                    'glassDefault' => '2-fach',
+                    'imageId' => 0,
+                    'image' => ''
+                ],
+                [
+                    'family' => 'Modern',
+                    'name' => 'Modern Panorama',
+                    'materialDefault' => 'kunststoff',
+                    'frameDefault' => 'schmal',
+                    'glassDefault' => '3-fach',
+                    'imageId' => 0,
+                    'image' => ''
+                ]
+            ],
+            'materials' => [
+                ['code' => 'alu', 'label' => 'Aluminium'],
+                ['code' => 'kunststoff', 'label' => 'Kunststoff'],
+                ['code' => 'holz', 'label' => 'Holz']
+            ],
+            'frames' => [
+                ['code' => 'classic', 'label' => 'Klassischer Rahmen'],
+                ['code' => 'schmal', 'label' => 'Schmaler Rahmen'],
+                ['code' => 'passiv', 'label' => 'Passivhaus Rahmen']
+            ],
+            'glass' => [
+                ['code' => '2-fach', 'label' => '2-fach Verglasung'],
+                ['code' => '3-fach', 'label' => '3-fach Verglasung'],
+                ['code' => 'sicherheitsglas', 'label' => 'Sicherheitsglas']
+            ],
+            'extras' => [
+                ['code' => 'falzluft', 'label' => 'Falzlüfter'],
+                ['code' => 'rollo', 'label' => 'Integriertes Rollo'],
+                ['code' => 'einbruch', 'label' => 'Einbruchschutz-Beschlag']
+            ]
+        ];
+    }
+
+    private function get_data() {
+        $stored = get_option(self::OPT_KEY);
+        if (!$stored || !is_array($stored)) return self::default_data();
+
+        $defaults = self::default_data();
+
+        $design = is_array($stored['design'] ?? null)
+            ? array_merge($defaults['design'], $stored['design'])
+            : $defaults['design'];
+
+        $models = (isset($stored['models']) && is_array($stored['models']) && !empty($stored['models']))
+            ? $stored['models']
+            : $defaults['models'];
+
+        $materials = (isset($stored['materials']) && is_array($stored['materials']) && !empty($stored['materials']))
+            ? $stored['materials']
+            : $defaults['materials'];
+
+        $frames = (isset($stored['frames']) && is_array($stored['frames']) && !empty($stored['frames']))
+            ? $stored['frames']
+            : $defaults['frames'];
+
+        $glass = (isset($stored['glass']) && is_array($stored['glass']) && !empty($stored['glass']))
+            ? $stored['glass']
+            : $defaults['glass'];
+
+        $extras = (isset($stored['extras']) && is_array($stored['extras']) && !empty($stored['extras']))
+            ? $stored['extras']
+            : $defaults['extras'];
+
+        return [
+            'email_to' => isset($stored['email_to']) ? $stored['email_to'] : $defaults['email_to'],
+            'design' => $design,
+            'models' => $models,
+            'materials' => $materials,
+            'frames' => $frames,
+            'glass' => $glass,
+            'extras' => $extras,
+        ];
+    }
+
+    public function register_assets() {
+        wp_register_style('schmitke-windows-configurator', plugins_url('public/configurator.css', __FILE__), [], '0.2.1');
+        wp_register_script('schmitke-windows-configurator', plugins_url('public/configurator-windows.js', __FILE__), [], '0.2.1', true);
+
+        $data = $this->get_data();
+        if (!empty($data['models']) && is_array($data['models'])) {
+            foreach ($data['models'] as &$m) {
+                if (empty($m['image']) && !empty($m['imageId'])) {
+                    $url = wp_get_attachment_image_url(intval($m['imageId']), 'large');
+                    if ($url) $m['image'] = $url;
+                }
+            }
+            unset($m);
+        }
+
+        wp_localize_script('schmitke-windows-configurator', 'SCHMITKE_WINDOWS_DATA', $data);
+    }
+
+    public function maybe_enqueue_assets() {
+        if (!is_singular()) return;
+        global $post;
+        if (!$post) return;
+        if (has_shortcode($post->post_content, 'schmitke_windows_configurator')) {
+            wp_enqueue_style('schmitke-windows-configurator');
+            wp_enqueue_script('schmitke-windows-configurator');
+        }
+    }
+
+    public function admin_assets($hook) {
+        if (!in_array($hook, ['settings_page_schmitke-windows-configurator', 'settings_page_schmitke-doors-configurator'], true)) return;
+        wp_enqueue_media();
+        wp_enqueue_style('wp-color-picker');
+        wp_enqueue_script('schmitke-doors-admin', plugins_url('admin/admin.js', __FILE__), ['jquery','wp-color-picker'], '0.2.1', true);
+        wp_enqueue_style('schmitke-doors-admin', plugins_url('admin/admin.css', __FILE__), [], '0.2.1');
+    }
+
+    public function admin_menu() {
+        add_options_page(
+            'Schmitke Fenster Konfigurator',
+            'Fenster Konfigurator',
+            'manage_options',
+            'schmitke-windows-configurator',
+            [$this, 'admin_page']
+        );
+    }
+
+    public function register_settings() {
+        register_setting('schmitke_windows_configurator_group', self::OPT_KEY, [
+            'type' => 'array',
+            'sanitize_callback' => [$this, 'sanitize_data']
+        ]);
+        if (!get_option(self::OPT_KEY)) {
+            add_option(self::OPT_KEY, self::default_data());
+        }
+    }
+
+    public function sanitize_data($input) {
+        if (!is_array($input)) return self::default_data();
+        $defaults = self::default_data();
+        $clean = $input;
+
+        $clean['email_to'] = isset($input['email_to']) ? sanitize_email($input['email_to']) : $defaults['email_to'];
+
+        $d = $input['design'] ?? [];
+        $clean['design'] = [
+            'primaryColor' => sanitize_hex_color($d['primaryColor'] ?? $defaults['design']['primaryColor']) ?: $defaults['design']['primaryColor'],
+            'accentColor'  => sanitize_hex_color($d['accentColor'] ?? $defaults['design']['accentColor']) ?: $defaults['design']['accentColor'],
+            'textColor'    => sanitize_hex_color($d['textColor'] ?? $defaults['design']['textColor']) ?: $defaults['design']['textColor'],
+            'borderColor'  => sanitize_hex_color($d['borderColor'] ?? $defaults['design']['borderColor']) ?: $defaults['design']['borderColor'],
+            'fontFamily'   => sanitize_text_field($d['fontFamily'] ?? $defaults['design']['fontFamily']),
+            'buttonRadius' => max(0, intval($d['buttonRadius'] ?? $defaults['design']['buttonRadius'])),
+            'cardRadius'   => max(0, intval($d['cardRadius'] ?? $defaults['design']['cardRadius']))
+        ];
+
+        $clean['materials'] = $this->sanitize_code_label_list($input['materials'] ?? $defaults['materials'], $defaults['materials']);
+        $clean['frames'] = $this->sanitize_code_label_list($input['frames'] ?? $defaults['frames'], $defaults['frames']);
+        $clean['glass'] = $this->sanitize_code_label_list($input['glass'] ?? $defaults['glass'], $defaults['glass']);
+        $clean['extras'] = $this->sanitize_code_label_list($input['extras'] ?? $defaults['extras'], $defaults['extras']);
+
+        $materialCodes = array_column($clean['materials'], 'code');
+        $frameCodes = array_column($clean['frames'], 'code');
+        $glassCodes = array_column($clean['glass'], 'code');
+
+        $clean['models'] = [];
+        if (isset($input['models']) && is_array($input['models'])) {
+            foreach ($input['models'] as $m) {
+                if (!is_array($m)) continue;
+
+                $imageId = intval($m['imageId'] ?? 0);
+                $imageUrl = esc_url_raw($m['image'] ?? '');
+                if ($imageId && !$imageUrl) {
+                    $u = wp_get_attachment_image_url($imageId, 'large');
+                    if ($u) $imageUrl = $u;
+                }
+
+                $clean['models'][] = [
+                    'family' => sanitize_text_field($m['family'] ?? ''),
+                    'name' => sanitize_text_field($m['name'] ?? ''),
+                    'materialDefault' => in_array(($m['materialDefault'] ?? ''), $materialCodes, true) ? $m['materialDefault'] : ($materialCodes[0] ?? ''),
+                    'frameDefault' => in_array(($m['frameDefault'] ?? ''), $frameCodes, true) ? $m['frameDefault'] : ($frameCodes[0] ?? ''),
+                    'glassDefault' => in_array(($m['glassDefault'] ?? ''), $glassCodes, true) ? $m['glassDefault'] : ($glassCodes[0] ?? ''),
+                    'imageId' => $imageId,
+                    'image' => $imageUrl
+                ];
+            }
+        }
+        if (empty($clean['models'])) $clean['models'] = $defaults['models'];
+
+        return $clean;
+    }
+
+    private function sanitize_code_label_list($input, $fallback) {
+        $clean = [];
+        if (is_array($input)) {
+            foreach ($input as $item) {
+                if (!is_array($item)) continue;
+                $code = sanitize_text_field($item['code'] ?? '');
+                $label = sanitize_text_field($item['label'] ?? '');
+                if ($code === '' && $label === '') continue;
+                $clean[] = [
+                    'code' => $code,
+                    'label' => $label,
+                ];
+            }
+        }
+        if (empty($clean)) return $fallback;
+        return $clean;
+    }
+
+    public function admin_page() {
+        if (!current_user_can('manage_options')) return;
+        $data = $this->get_data();
+        $opt = self::OPT_KEY;
+        ?>
+        <div class="wrap schmitke-admin">
+            <h1>Schmitke Fenster Konfigurator – Einstellungen</h1>
+
+            <form method="post" action="options.php">
+                <?php settings_fields('schmitke_windows_configurator_group'); ?>
+
+                <div class="schmitke-section">
+                    <h2>Empfänger E‑Mail</h2>
+                    <input type="email" name="<?php echo esc_attr($opt); ?>[email_to]"
+                           value="<?php echo esc_attr($data['email_to'] ?? ''); ?>" class="regular-text">
+                </div>
+
+                <div class="schmitke-section">
+                    <h2>Design</h2>
+                    <div class="schmitke-design-grid">
+                        <label>Primary Color
+                            <input type="text" class="schmitke-color"
+                                   name="<?php echo esc_attr($opt); ?>[design][primaryColor]"
+                                   value="<?php echo esc_attr($data['design']['primaryColor'] ?? '#111111'); ?>">
+                        </label>
+                        <label>Accent Color
+                            <input type="text" class="schmitke-color"
+                                   name="<?php echo esc_attr($opt); ?>[design][accentColor]"
+                                   value="<?php echo esc_attr($data['design']['accentColor'] ?? '#f2f2f2'); ?>">
+                        </label>
+                        <label>Text Color
+                            <input type="text" class="schmitke-color"
+                                   name="<?php echo esc_attr($opt); ?>[design][textColor]"
+                                   value="<?php echo esc_attr($data['design']['textColor'] ?? '#111111'); ?>">
+                        </label>
+                        <label>Border Color
+                            <input type="text" class="schmitke-color"
+                                   name="<?php echo esc_attr($opt); ?>[design][borderColor]"
+                                   value="<?php echo esc_attr($data['design']['borderColor'] ?? '#e7e7e7'); ?>">
+                        </label>
+                        <label>Font Family
+                            <input type="text" name="<?php echo esc_attr($opt); ?>[design][fontFamily]"
+                                   value="<?php echo esc_attr($data['design']['fontFamily'] ?? 'system-ui'); ?>" class="regular-text">
+                        </label>
+                        <label>Button Radius (px)
+                            <input type="number" min="0" max="40"
+                                   name="<?php echo esc_attr($opt); ?>[design][buttonRadius]"
+                                   value="<?php echo esc_attr($data['design']['buttonRadius'] ?? 10); ?>">
+                        </label>
+                        <label>Card Radius (px)
+                            <input type="number" min="0" max="40"
+                                   name="<?php echo esc_attr($opt); ?>[design][cardRadius]"
+                                   value="<?php echo esc_attr($data['design']['cardRadius'] ?? 14); ?>">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="schmitke-section">
+                    <h2>Fenstermodelle</h2>
+
+                    <div id="schmitke-model-list">
+                        <?php foreach (($data['models'] ?? []) as $i => $m): ?>
+                            <?php
+                                $imagePreview = '';
+                                if (!empty($m['imageId'])) $imagePreview = wp_get_attachment_image_url(intval($m['imageId']), 'thumbnail');
+                                if (!$imagePreview && !empty($m['image'])) $imagePreview = esc_url($m['image']);
+                            ?>
+                            <div class="schmitke-model-card">
+                                <div class="schmitke-model-head">
+                                    <div>
+                                        <strong class="schmitke-model-title"><?php echo esc_html(($m['family'] ?? '') . ' – ' . ($m['name'] ?? '')); ?></strong>
+                                        <div class="schmitke-model-sub"><?php echo esc_html($m['materialDefault'] ?? ''); ?></div>
+                                    </div>
+                                    <div class="schmitke-model-actions">
+                                        <button type="button" class="button schmitke-toggle">Öffnen</button>
+                                        <button type="button" class="button button-link-delete schmitke-remove">Löschen</button>
+                                    </div>
+                                </div>
+
+                                <div class="schmitke-model-body">
+                                    <div class="schmitke-model-grid">
+                                        <label>Familie
+                                            <input type="text" name="<?php echo esc_attr($opt); ?>[models][<?php echo $i; ?>][family]"
+                                                   value="<?php echo esc_attr($m['family']); ?>">
+                                        </label>
+                                        <label>Modellname
+                                            <input type="text" name="<?php echo esc_attr($opt); ?>[models][<?php echo $i; ?>][name]"
+                                                   value="<?php echo esc_attr($m['name']); ?>">
+                                        </label>
+                                        <label>Material Default
+                                            <select name="<?php echo esc_attr($opt); ?>[models][<?php echo $i; ?>][materialDefault]">
+                                                <?php foreach (($data['materials'] ?? []) as $mat): ?>
+                                                    <option value="<?php echo esc_attr($mat['code']); ?>" <?php selected($m['materialDefault'], $mat['code']); ?>><?php echo esc_html($mat['label']); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </label>
+                                        <label>Rahmen Default
+                                            <select name="<?php echo esc_attr($opt); ?>[models][<?php echo $i; ?>][frameDefault]">
+                                                <?php foreach (($data['frames'] ?? []) as $frame): ?>
+                                                    <option value="<?php echo esc_attr($frame['code']); ?>" <?php selected($m['frameDefault'], $frame['code']); ?>><?php echo esc_html($frame['label']); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </label>
+                                        <label>Glas Default
+                                            <select name="<?php echo esc_attr($opt); ?>[models][<?php echo $i; ?>][glassDefault]">
+                                                <?php foreach (($data['glass'] ?? []) as $glass): ?>
+                                                    <option value="<?php echo esc_attr($glass['code']); ?>" <?php selected($m['glassDefault'], $glass['code']); ?>><?php echo esc_html($glass['label']); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </label>
+
+                                        <div class="schmitke-image-field">
+                                            <label>Bild (WP-Mediathek)</label>
+                                            <div class="schmitke-image-row">
+                                                <img class="schmitke-image-preview" src="<?php echo esc_url($imagePreview); ?>" alt="" />
+                                                <div class="schmitke-image-buttons">
+                                                    <button type="button" class="button schmitke-pick-image">Bild wählen</button>
+                                                    <button type="button" class="button schmitke-clear-image">Entfernen</button>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" class="schmitke-image-id"
+                                                   name="<?php echo esc_attr($opt); ?>[models][<?php echo $i; ?>][imageId]"
+                                                   value="<?php echo esc_attr($m['imageId'] ?? 0); ?>">
+                                            <input type="hidden" class="schmitke-image-url"
+                                                   name="<?php echo esc_attr($opt); ?>[models][<?php echo $i; ?>][image]"
+                                                   value="<?php echo esc_attr($m['image'] ?? ''); ?>">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <p><button type="button" class="button button-secondary" id="schmitke-add-model">+ Modell hinzufügen</button></p>
+                </div>
+
+                <div class="schmitke-section">
+                    <h2>Materialien</h2>
+                    <table class="form-table">
+                        <tbody>
+                        <?php $materials = array_merge($data['materials'] ?? [], [['code' => '', 'label' => '']]); ?>
+                        <?php foreach ($materials as $i => $mat): ?>
+                            <tr>
+                                <th scope="row">Material <?php echo $i + 1; ?></th>
+                                <td>
+                                    <input type="text" name="<?php echo esc_attr($opt); ?>[materials][<?php echo $i; ?>][code]" value="<?php echo esc_attr($mat['code']); ?>" placeholder="Code">
+                                    <input type="text" name="<?php echo esc_attr($opt); ?>[materials][<?php echo $i; ?>][label]" value="<?php echo esc_attr($mat['label']); ?>" placeholder="Label" class="regular-text">
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="schmitke-section">
+                    <h2>Rahmen</h2>
+                    <table class="form-table">
+                        <tbody>
+                        <?php $frames = array_merge($data['frames'] ?? [], [['code' => '', 'label' => '']]); ?>
+                        <?php foreach ($frames as $i => $frame): ?>
+                            <tr>
+                                <th scope="row">Rahmen <?php echo $i + 1; ?></th>
+                                <td>
+                                    <input type="text" name="<?php echo esc_attr($opt); ?>[frames][<?php echo $i; ?>][code]" value="<?php echo esc_attr($frame['code']); ?>" placeholder="Code">
+                                    <input type="text" name="<?php echo esc_attr($opt); ?>[frames][<?php echo $i; ?>][label]" value="<?php echo esc_attr($frame['label']); ?>" placeholder="Label" class="regular-text">
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="schmitke-section">
+                    <h2>Glas</h2>
+                    <table class="form-table">
+                        <tbody>
+                        <?php $glass = array_merge($data['glass'] ?? [], [['code' => '', 'label' => '']]); ?>
+                        <?php foreach ($glass as $i => $g): ?>
+                            <tr>
+                                <th scope="row">Glas <?php echo $i + 1; ?></th>
+                                <td>
+                                    <input type="text" name="<?php echo esc_attr($opt); ?>[glass][<?php echo $i; ?>][code]" value="<?php echo esc_attr($g['code']); ?>" placeholder="Code">
+                                    <input type="text" name="<?php echo esc_attr($opt); ?>[glass][<?php echo $i; ?>][label]" value="<?php echo esc_attr($g['label']); ?>" placeholder="Label" class="regular-text">
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="schmitke-section">
+                    <h2>Extras</h2>
+                    <table class="form-table">
+                        <tbody>
+                        <?php $extras = array_merge($data['extras'] ?? [], [['code' => '', 'label' => '']]); ?>
+                        <?php foreach ($extras as $i => $ex): ?>
+                            <tr>
+                                <th scope="row">Extra <?php echo $i + 1; ?></th>
+                                <td>
+                                    <input type="text" name="<?php echo esc_attr($opt); ?>[extras][<?php echo $i; ?>][code]" value="<?php echo esc_attr($ex['code']); ?>" placeholder="Code">
+                                    <input type="text" name="<?php echo esc_attr($opt); ?>[extras][<?php echo $i; ?>][label]" value="<?php echo esc_attr($ex['label']); ?>" placeholder="Label" class="regular-text">
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php submit_button(); ?>
+            </form>
+        </div>
+
+        <script type="text/template" id="schmitke-model-template">
+            <div class="schmitke-model-card">
+                <div class="schmitke-model-head">
+                    <div>
+                        <strong class="schmitke-model-title">Neues Modell</strong>
+                        <div class="schmitke-model-sub"></div>
+                    </div>
+                    <div class="schmitke-model-actions">
+                        <button type="button" class="button schmitke-toggle">Öffnen</button>
+                        <button type="button" class="button button-link-delete schmitke-remove">Löschen</button>
+                    </div>
+                </div>
+                <div class="schmitke-model-body">
+                    <div class="schmitke-model-grid">
+                        <label>Familie
+                            <input type="text" name="<?php echo esc_attr($opt); ?>[models][__i__][family]" value="">
+                        </label>
+                        <label>Modellname
+                            <input type="text" name="<?php echo esc_attr($opt); ?>[models][__i__][name]" value="">
+                        </label>
+                        <label>Material Default
+                            <select name="<?php echo esc_attr($opt); ?>[models][__i__][materialDefault]">
+                                <?php foreach (($data['materials'] ?? []) as $mat): ?>
+                                    <option value="<?php echo esc_attr($mat['code']); ?>"><?php echo esc_html($mat['label']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>Rahmen Default
+                            <select name="<?php echo esc_attr($opt); ?>[models][__i__][frameDefault]">
+                                <?php foreach (($data['frames'] ?? []) as $frame): ?>
+                                    <option value="<?php echo esc_attr($frame['code']); ?>"><?php echo esc_html($frame['label']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>Glas Default
+                            <select name="<?php echo esc_attr($opt); ?>[models][__i__][glassDefault]">
+                                <?php foreach (($data['glass'] ?? []) as $glass): ?>
+                                    <option value="<?php echo esc_attr($glass['code']); ?>"><?php echo esc_html($glass['label']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+
+                        <div class="schmitke-image-field">
+                            <label>Bild (WP-Mediathek)</label>
+                            <div class="schmitke-image-row">
+                                <img class="schmitke-image-preview" src="" alt="" />
+                                <div class="schmitke-image-buttons">
+                                    <button type="button" class="button schmitke-pick-image">Bild wählen</button>
+                                    <button type="button" class="button schmitke-clear-image">Entfernen</button>
+                                </div>
+                            </div>
+                            <input type="hidden" class="schmitke-image-id"
+                                   name="<?php echo esc_attr($opt); ?>[models][__i__][imageId]" value="0">
+                            <input type="hidden" class="schmitke-image-url"
+                                   name="<?php echo esc_attr($opt); ?>[models][__i__][image]" value="">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </script>
+        <?php
+    }
+
+    public function shortcode($atts) {
+        wp_enqueue_style('schmitke-windows-configurator');
+        wp_enqueue_script('schmitke-windows-configurator');
+        return '<div id="schmitke-window-configurator"></div>';
+    }
+}
+
+new Schmitke_Windows_Configurator();
