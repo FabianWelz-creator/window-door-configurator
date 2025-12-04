@@ -302,16 +302,28 @@
     render();
   }
 
-  function renderOptionGrid(optionsList, selectedKey, onSelect){
-    if(!Array.isArray(optionsList) || !optionsList.length){
+  function renderOptionGrid(optionsArray, currentKey, onSelect){
+    if(!Array.isArray(optionsArray) || !optionsArray.length){
       return el("div",{class:"scc-note"},["Keine Optionen verfügbar."]);
     }
+
     return el("div",{class:"swc-option-grid"},
-      optionsList.map(option=>{
-        const card = el("div",{class:"swc-option-card" + (option.key===selectedKey?" sel":""),onclick:()=>{onSelect(option.key);}});
-        const img = option.image ? el("img",{src:option.image,alt:option.title||option.key,onerror:"this.style.display='none'"}) : el("div",{class:"swc-option-placeholder"});
-        const title = el("div",{class:"swc-option-title"},[option.title || option.key || "Option"]);
-        card.append(img,title);
+      optionsArray.map(option=>{
+        const isSelected = option.key===currentKey;
+        const card = el("div",{class:`swc-option-card${isSelected?" sel":""}`,onclick:()=>{ if(onSelect) onSelect(option.key); }});
+        if(option.image){
+          card.appendChild(el("img",{src:option.image,alt:option.title||option.key||"Option",onerror:"this.style.display='none'"}));
+        } else {
+          card.appendChild(el("div",{class:"swc-option-placeholder"}));
+        }
+
+        const text=el("div",{class:"swc-option-text"},[
+          el("div",{class:"swc-option-title"},[option.title || option.key || "Option"])
+        ]);
+        if(option.subtitle){
+          text.appendChild(el("div",{class:"swc-option-subtitle"},[option.subtitle]));
+        }
+        card.appendChild(text);
         return card;
       })
     );
