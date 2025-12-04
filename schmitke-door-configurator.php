@@ -543,6 +543,190 @@ class Schmitke_Windows_Configurator {
                 ['code' => 'falzluft', 'label' => 'Falzlüfter'],
                 ['code' => 'rollo', 'label' => 'Integriertes Rollo'],
                 ['code' => 'einbruch', 'label' => 'Einbruchschutz-Beschlag']
+            ],
+            'options' => [
+                'type' => [
+                    [
+                        'key' => 'window',
+                        'title' => 'Fenster',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'balcony',
+                        'title' => 'Balkontür',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'sliding',
+                        'title' => 'Schiebetür',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ]
+                ],
+                'manufacturer' => [
+                    [
+                        'key' => 'veka',
+                        'title' => 'VEKA',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'schueco',
+                        'title' => 'Schüco',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ]
+                ],
+                'profile' => [
+                    [
+                        'key' => 'veka-softline-82',
+                        'title' => 'VEKA Softline 82',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'schueco-living',
+                        'title' => 'Schüco LivIng',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ]
+                ],
+                'colorExterior' => [],
+                'colorInterior' => [],
+                'form' => [
+                    [
+                        'key' => 'rechteck',
+                        'title' => 'Rechteck',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'rundbogen',
+                        'title' => 'Rundbogen',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'segmentbogen',
+                        'title' => 'Segmentbogen',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'rund',
+                        'title' => 'Rund',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'dreieck',
+                        'title' => 'Dreieck',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ]
+                ],
+                'sashes' => [
+                    [
+                        'key' => '1-fluegel',
+                        'title' => '1 Flügel',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => '2-fluegel',
+                        'title' => '2 Flügel',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => '3-fluegel',
+                        'title' => '3 Flügel',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => '4-fluegel',
+                        'title' => '4 Flügel',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ]
+                ],
+                'opening' => [
+                    [
+                        'key' => 'dreh-kipp',
+                        'title' => 'Dreh-Kipp',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'festverglast',
+                        'title' => 'Festverglast',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'psk',
+                        'title' => 'Parallel-Schiebe-Kipp',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'hebe-schiebe',
+                        'title' => 'Hebe-Schiebe',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ],
+                    [
+                        'key' => 'klapp',
+                        'title' => 'Klappflügel',
+                        'subtitle' => '',
+                        'imageId' => 0,
+                        'image' => '',
+                        'description' => ''
+                    ]
+                ]
             ]
         ];
     }
@@ -577,6 +761,15 @@ class Schmitke_Windows_Configurator {
             ? $stored['extras']
             : $defaults['extras'];
 
+        $options = $defaults['options'];
+        if (isset($stored['options']) && is_array($stored['options'])) {
+            foreach ($defaults['options'] as $key => $defaultList) {
+                if (isset($stored['options'][$key]) && is_array($stored['options'][$key]) && !empty($stored['options'][$key])) {
+                    $options[$key] = $stored['options'][$key];
+                }
+            }
+        }
+
         return [
             'email_to' => isset($stored['email_to']) ? $stored['email_to'] : $defaults['email_to'],
             'design' => $design,
@@ -585,6 +778,7 @@ class Schmitke_Windows_Configurator {
             'frames' => $frames,
             'glass' => $glass,
             'extras' => $extras,
+            'options' => $options,
         ];
     }
 
@@ -601,6 +795,21 @@ class Schmitke_Windows_Configurator {
                 }
             }
             unset($m);
+        }
+
+        if (!empty($data['options']) && is_array($data['options'])) {
+            foreach ($data['options'] as &$optionGroup) {
+                if (!is_array($optionGroup)) continue;
+                foreach ($optionGroup as &$opt) {
+                    if (!is_array($opt)) continue;
+                    if (empty($opt['image']) && !empty($opt['imageId'])) {
+                        $url = wp_get_attachment_image_url(intval($opt['imageId']), 'large');
+                        if ($url) $opt['image'] = $url;
+                    }
+                }
+                unset($opt);
+            }
+            unset($optionGroup);
         }
 
         wp_localize_script('schmitke-windows-configurator', 'SCHMITKE_WINDOWS_DATA', $data);
@@ -667,6 +876,8 @@ class Schmitke_Windows_Configurator {
         $clean['glass'] = $this->sanitize_code_label_list($input['glass'] ?? $defaults['glass'], $defaults['glass']);
         $clean['extras'] = $this->sanitize_code_label_list($input['extras'] ?? $defaults['extras'], $defaults['extras']);
 
+        $clean['options'] = $this->sanitize_options($input['options'] ?? $defaults['options'], $defaults['options']);
+
         $materialCodes = array_column($clean['materials'], 'code');
         $frameCodes = array_column($clean['frames'], 'code');
         $glassCodes = array_column($clean['glass'], 'code');
@@ -713,6 +924,52 @@ class Schmitke_Windows_Configurator {
                 ];
             }
         }
+        if (empty($clean)) return $fallback;
+        return $clean;
+    }
+
+    private function sanitize_options($input, $fallback) {
+        $clean = [];
+        if (!is_array($fallback)) return [];
+
+        foreach ($fallback as $key => $defaultList) {
+            $clean[$key] = $this->sanitize_option_items($input[$key] ?? $defaultList, $defaultList);
+        }
+
+        return $clean;
+    }
+
+    private function sanitize_option_items($input, $fallback) {
+        $clean = [];
+        if (is_array($input)) {
+            foreach ($input as $item) {
+                if (!is_array($item)) continue;
+
+                $key = sanitize_text_field($item['key'] ?? '');
+                $title = sanitize_text_field($item['title'] ?? '');
+                $subtitle = sanitize_text_field($item['subtitle'] ?? '');
+                $description = sanitize_text_field($item['description'] ?? '');
+                $imageId = intval($item['imageId'] ?? 0);
+                $image = esc_url_raw($item['image'] ?? '');
+
+                if ($key === '' && $title === '' && !$imageId && $image === '') continue;
+
+                if ($imageId && !$image) {
+                    $url = wp_get_attachment_image_url($imageId, 'large');
+                    if ($url) $image = $url;
+                }
+
+                $clean[] = [
+                    'key' => $key,
+                    'title' => $title,
+                    'subtitle' => $subtitle,
+                    'imageId' => $imageId,
+                    'image' => $image,
+                    'description' => $description,
+                ];
+            }
+        }
+
         if (empty($clean)) return $fallback;
         return $clean;
     }
