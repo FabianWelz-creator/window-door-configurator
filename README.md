@@ -1,9 +1,9 @@
-# Schmitke Türen Konfigurator
+# Schmitke Türen & Fenster Konfigurator
 
-Ein moderner Türen-Konfigurator als WordPress-Plugin für Schmitke Bauelemente. Kunden können Türmodelle, Maße, Kanten, Lichtausschnitte und Extras auswählen und die Konfiguration als E-Mail-Anfrage an den Betrieb senden.
+Ein moderner Türen- und Fenster-Konfigurator als WordPress-Plugin für Schmitke Bauelemente. Kunden können Tür- und Fenster-Modelle mit allen relevanten Optionen auswählen und die Konfiguration als E-Mail-Anfrage an den Betrieb senden.
 
 ## ✨ Features
-- **WordPress-Shortcode**: `[schmitke_doors_configurator]` rendert den React-basierten Konfigurator im Frontend.
+- **WordPress-Shortcodes**: `[schmitke_doors_configurator]` rendert den Türen-Konfigurator, `[schmitke_windows_configurator]` den Fenster-Konfigurator im Frontend.
 - **Admin-Panel**: Modelle, Größen, Kanten, Regeln und Design-Optionen werden zentral gepflegt.
 - **WordPress-Mediathek**: Bilder werden direkt aus der Mediendatenbank gewählt.
 - **Automatische E-Mail**: Zusammenfassung der Auswahl wird an die hinterlegte Zieladresse versendet.
@@ -16,11 +16,12 @@ Ein moderner Türen-Konfigurator als WordPress-Plugin für Schmitke Bauelemente.
 3. Optional: Die Standarddaten können im Admin-Bereich sofort angepasst werden.
 
 ## 🚀 Nutzung
-1. Erstelle eine Seite oder einen Beitrag und füge den Shortcode ein:
+1. Erstelle eine Seite oder einen Beitrag und füge je nach Bedarf einen Shortcode ein:
    ```
    [schmitke_doors_configurator]
+   [schmitke_windows_configurator]
    ```
-2. Speichere die Seite. Der Konfigurator lädt sein Styling (`public/configurator.css`) und Verhalten (`public/configurator.js`) automatisch nur, wenn der Shortcode vorhanden ist.
+2. Speichere die Seite. Der jeweilige Konfigurator lädt sein Styling (`public/configurator.css`) und Verhalten (`public/configurator.js` bzw. `public/configurator-windows.js`) automatisch nur, wenn der Shortcode vorhanden ist.
 
 ## 🔧 Konfiguration im Admin-Bereich
 Die Einstellungen findest du unter **Einstellungen → Türen Konfigurator**.
