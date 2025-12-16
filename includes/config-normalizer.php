@@ -17,6 +17,8 @@ if (!defined('ABSPATH')) exit;
  * structure without breaking old saves.
  */
 class Schmitke_Config_Normalizer {
+    private static $order_cache = null;
+
     public static function default_elements_meta($type) {
         $order = 1;
         $defaults = [
@@ -66,7 +68,7 @@ class Schmitke_Config_Normalizer {
             }
         }
 
-        return $clean;
+        return self::apply_ordering_to_meta($clean);
     }
 
     public static function sanitize_element_options($input, $type, $legacySource = []) {
@@ -139,6 +141,53 @@ class Schmitke_Config_Normalizer {
             'accordion_default_open' => isset($entry['accordion_default_open']) ? (bool)$entry['accordion_default_open'] : false,
             'order' => isset($entry['order']) ? intval($entry['order']) : 0,
         ];
+    }
+
+    private static function apply_ordering_to_meta($meta) {
+        if (empty($meta)) return $meta;
+
+        $orderList = self::get_element_order();
+        $orderMap = [];
+        foreach ($orderList as $idx => $elementKey) {
+            $sanitizedKey = sanitize_key($elementKey);
+            if ($sanitizedKey === '') continue;
+            $orderMap[$sanitizedKey] = $idx + 1;
+        }
+
+        $normalized = [];
+        foreach ($meta as $idx => $entry) {
+            $key = $entry['element_key'] ?? '';
+            $explicitOrder = isset($entry['order']) ? intval($entry['order']) : 0;
+            $derivedOrder = $orderMap[$key] ?? 0;
+            $entry['order'] = $explicitOrder ?: ($derivedOrder ?: (1000 + $idx));
+            $entry['__orig_index'] = $idx;
+            $normalized[] = $entry;
+        }
+
+        usort($normalized, function($a, $b) {
+            if ($a['order'] === $b['order']) {
+                return $a['__orig_index'] <=> $b['__orig_index'];
+            }
+            return $a['order'] <=> $b['order'];
+        });
+
+        foreach ($normalized as &$entry) {
+            unset($entry['__orig_index']);
+        }
+        unset($entry);
+
+        return $normalized;
+    }
+
+    private static function get_element_order() {
+        if (self::$order_cache !== null) return self::$order_cache;
+
+        $list = include __DIR__ . '/config-order.php';
+        if (!is_array($list)) $list = [];
+
+        return self::$order_cache = array_values(array_filter($list, function($v){
+            return is_string($v) && sanitize_key($v) !== '';
+        }));
     }
 
     private static function sanitize_option_list($options) {
