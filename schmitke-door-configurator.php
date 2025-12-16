@@ -56,6 +56,9 @@ class Schmitke_Doors_Configurator_V21 {
     }
 
     public function __construct() {
+        add_action('plugins_loaded', function(){
+            load_plugin_textdomain('schmitke-doors', false, dirname(plugin_basename(__FILE__)).'/languages');
+        });
         add_action('admin_menu', [$this, 'admin_menu']);
         add_action('admin_init', [$this, 'register_settings']);
         add_shortcode('schmitke_doors_configurator', [$this, 'shortcode']);
@@ -138,6 +141,7 @@ class Schmitke_Doors_Configurator_V21 {
             }
             unset($m);
         }
+        $data['locale'] = (substr(get_locale(), 0, 2) === 'de') ? 'de' : 'en';
         wp_localize_script('schmitke-doors-configurator', 'SCHMITKE_DOORS_DATA', $data);
     }
 
@@ -848,6 +852,8 @@ class Schmitke_Windows_Configurator {
             }
             unset($optionGroup);
         }
+
+        $data['locale'] = (substr(get_locale(), 0, 2) === 'de') ? 'de' : 'en';
 
         wp_localize_script('schmitke-windows-configurator', 'SCHMITKE_WINDOWS_DATA', $data);
     }

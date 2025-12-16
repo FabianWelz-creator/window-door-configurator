@@ -203,11 +203,16 @@ class Schmitke_Config_Normalizer {
 
     private static function sanitize_option_entry($opt) {
         $label = is_array($opt['label'] ?? null) ? $opt['label'] : [];
+        $info = is_array($opt['info'] ?? null) ? $opt['info'] : [];
         return [
             'option_code' => sanitize_key($opt['option_code'] ?? ''),
             'label' => [
                 'de' => sanitize_text_field($label['de'] ?? ''),
                 'en' => sanitize_text_field($label['en'] ?? ''),
+            ],
+            'info' => [
+                'de' => sanitize_text_field($info['de'] ?? ''),
+                'en' => sanitize_text_field($info['en'] ?? ''),
             ],
             'image_id' => intval($opt['image_id'] ?? 0),
             'is_default' => isset($opt['is_default']) ? (bool)$opt['is_default'] : false,
@@ -260,6 +265,7 @@ class Schmitke_Config_Normalizer {
             $mapped[] = [
                 'option_code' => $code !== '' ? $code : 'item_'.$idx,
                 'label' => ['de' => $label, 'en' => $label],
+                'info' => ['de' => '', 'en' => ''],
                 'image_id' => 0,
                 'is_default' => $idx === 0,
                 'price' => null,
@@ -284,6 +290,7 @@ class Schmitke_Config_Normalizer {
             $mapped[] = [
                 'option_code' => $slugBase,
                 'label' => ['de' => $label, 'en' => $label],
+                'info' => ['de' => '', 'en' => ''],
                 'image_id' => intval($model['imageId'] ?? 0),
                 'is_default' => $idx === 0,
                 'price' => null,
@@ -302,6 +309,7 @@ class Schmitke_Config_Normalizer {
             $mapped[] = [
                 'option_code' => sanitize_title($text ?: 'option-'.$idx),
                 'label' => ['de' => $text, 'en' => $text],
+                'info' => ['de' => '', 'en' => ''],
                 'image_id' => 0,
                 'is_default' => $idx === 0,
                 'price' => null,
@@ -322,6 +330,7 @@ class Schmitke_Config_Normalizer {
                     'de' => sanitize_text_field($label ?? ''),
                     'en' => sanitize_text_field($label ?? ''),
                 ],
+                'info' => ['de' => '', 'en' => ''],
                 'image_id' => 0,
                 'is_default' => $i === 0,
                 'price' => null,
@@ -355,6 +364,7 @@ class Schmitke_Config_Normalizer {
             $mapped[] = [
                 'option_code' => sanitize_key($item['key'] ?? 'option_'.$idx),
                 'label' => ['de' => $label, 'en' => $label],
+                'info' => ['de' => sanitize_text_field($item['description'] ?? ''), 'en' => sanitize_text_field($item['description'] ?? '')],
                 'image_id' => intval($item['imageId'] ?? 0),
                 'is_default' => $idx === 0,
                 'price' => null,
