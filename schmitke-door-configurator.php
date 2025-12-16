@@ -112,7 +112,12 @@ class Schmitke_Doors_Configurator_V21 {
                 "constructionLabels" => [
                     "stumpf"=>"Stumpf einschlagend",
                     "gefaelzt"=>"Gefälzt (Normfalz)"
-                ]
+                ],
+                "ui_rules" => []
+            ],
+            'upload' => [
+                'max_mb' => 5,
+                'allowed_mime_types' => ['image/jpeg', 'image/png', 'image/webp']
             ],
             'elements_meta' => [],
             'element_options' => []
@@ -745,6 +750,14 @@ class Schmitke_Windows_Configurator {
                         'description' => ''
                     ]
                 ]
+            ],
+            'rules' => [
+                'constructionLabels' => [],
+                'ui_rules' => []
+            ],
+            'upload' => [
+                'max_mb' => 5,
+                'allowed_mime_types' => ['image/jpeg', 'image/png', 'image/webp']
             ],
             'elements_meta' => [],
             'element_options' => []
