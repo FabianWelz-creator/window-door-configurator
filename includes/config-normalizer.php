@@ -31,6 +31,7 @@ class Schmitke_Config_Normalizer {
                 self::meta_entry('direction', 'Anschlag', 'Hinge direction', $order++),
                 self::meta_entry('leafs', 'Flügel', 'Leafs', $order++),
                 self::meta_entry('extras', 'Extras', 'Extras', $order++),
+                self::meta_entry('customer_photo', 'Kundenfoto-Upload', 'Customer photo upload', $order++),
             ],
             'windows' => [
                 self::meta_entry('model', 'Fenstermodell', 'Window model', $order++),
