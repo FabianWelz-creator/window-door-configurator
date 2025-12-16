@@ -5,6 +5,15 @@
   const root = document.getElementById('schmitke-window-configurator');
   if(!root) return;
 
+  const LANG = (DATA.locale === 'de') ? 'de' : 'en';
+
+  function getLabel(label){
+    if(label && typeof label === 'object'){
+      return label[LANG] || label.de || label.en || Object.values(label)[0] || '';
+    }
+    return label || '';
+  }
+
   const STORAGE_KEY = 'schmitke_windows_offer_state';
 
   // Apply design variables
@@ -18,7 +27,7 @@
   if(typeof d.buttonRadius !== 'undefined') style.setProperty('--scc-btn-radius', d.buttonRadius+'px');
   if(typeof d.cardRadius !== 'undefined') style.setProperty('--scc-card-radius', d.cardRadius+'px');
 
-  const extrasMap = new Map((DATA.extras||[]).map(ex=>[ex.code, ex.label]));
+  const extrasMap = new Map((DATA.extras||[]).map(ex=>[ex.code, getLabel(ex.label)]));
   const OPTIONS = DATA.options || {};
 
   function first(list, fallback){
