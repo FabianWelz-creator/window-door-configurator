@@ -8,6 +8,7 @@
  */
 
 if (!defined('ABSPATH')) exit;
+require_once plugin_dir_path(__FILE__).'includes/config-normalizer.php';
 
 class Schmitke_Doors_Configurator_V21 {
     const OPT_KEY = 'schmitke_doors_configurator_data_v21';
@@ -39,7 +40,7 @@ class Schmitke_Doors_Configurator_V21 {
         }
         if (empty($rules['constructionLabels'])) $rules = $defaults['rules'];
 
-        return [
+        $data = [
             'email_to' => isset($stored['email_to']) ? $stored['email_to'] : $defaults['email_to'],
             'design' => $design,
             'models' => (isset($stored['models']) && is_array($stored['models']) && !empty($stored['models'])) ? $stored['models'] : $defaults['models'],
@@ -47,7 +48,11 @@ class Schmitke_Doors_Configurator_V21 {
             'frames' => $frames,
             'extras' => $extras,
             'rules' => $rules,
+            'elements_meta' => is_array($stored['elements_meta'] ?? null) ? $stored['elements_meta'] : [],
+            'element_options' => is_array($stored['element_options'] ?? null) ? $stored['element_options'] : [],
         ];
+
+        return Schmitke_Config_Normalizer::get_configurator_config($data, 'doors', self::default_data());
     }
 
     public function __construct() {
@@ -108,7 +113,9 @@ class Schmitke_Doors_Configurator_V21 {
                     "stumpf"=>"Stumpf einschlagend",
                     "gefaelzt"=>"Gefälzt (Normfalz)"
                 ]
-            ]
+            ],
+            'elements_meta' => [],
+            'element_options' => []
         ];
     }
 
@@ -260,6 +267,17 @@ class Schmitke_Doors_Configurator_V21 {
             }
         }
         if (empty($clean['rules']['constructionLabels'])) $clean['rules'] = $defaults['rules'];
+
+        $clean['elements_meta'] = Schmitke_Config_Normalizer::sanitize_elements_meta(
+            $input['elements_meta'] ?? [],
+            Schmitke_Config_Normalizer::default_elements_meta('doors')
+        );
+
+        $clean['element_options'] = Schmitke_Config_Normalizer::sanitize_element_options(
+            $input['element_options'] ?? [],
+            'doors',
+            $clean
+        );
         return $clean;
     }
 
@@ -727,7 +745,9 @@ class Schmitke_Windows_Configurator {
                         'description' => ''
                     ]
                 ]
-            ]
+            ],
+            'elements_meta' => [],
+            'element_options' => []
         ];
     }
 
@@ -770,7 +790,7 @@ class Schmitke_Windows_Configurator {
             }
         }
 
-        return [
+        $data = [
             'email_to' => isset($stored['email_to']) ? $stored['email_to'] : $defaults['email_to'],
             'design' => $design,
             'models' => $models,
@@ -779,7 +799,11 @@ class Schmitke_Windows_Configurator {
             'glass' => $glass,
             'extras' => $extras,
             'options' => $options,
+            'elements_meta' => is_array($stored['elements_meta'] ?? null) ? $stored['elements_meta'] : [],
+            'element_options' => is_array($stored['element_options'] ?? null) ? $stored['element_options'] : [],
         ];
+
+        return Schmitke_Config_Normalizer::get_configurator_config($data, 'windows', self::default_data());
     }
 
     public function register_assets() {
@@ -906,6 +930,17 @@ class Schmitke_Windows_Configurator {
             }
         }
         if (empty($clean['models'])) $clean['models'] = $defaults['models'];
+
+        $clean['elements_meta'] = Schmitke_Config_Normalizer::sanitize_elements_meta(
+            $input['elements_meta'] ?? [],
+            Schmitke_Config_Normalizer::default_elements_meta('windows')
+        );
+
+        $clean['element_options'] = Schmitke_Config_Normalizer::sanitize_element_options(
+            $input['element_options'] ?? [],
+            'windows',
+            $clean
+        );
 
         return $clean;
     }
