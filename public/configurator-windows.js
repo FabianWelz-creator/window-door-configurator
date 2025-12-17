@@ -1,22 +1,10 @@
 (function(){
-  const DATA = (window.SCHMITKE_WINDOWS_DATA || {});
-  if(!DATA.models){ console.error('SCHMITKE_WINDOWS_DATA missing'); return; }
-
   const root = document.getElementById('schmitke-window-configurator');
   if(!root) return;
-
+  const DATA = (window.SCHMITKE_WINDOWS_DATA || {});
   const LANG = (DATA.locale === 'de') ? 'de' : 'en';
 
-  function getLabel(label){
-    if(label && typeof label === 'object'){
-      return label[LANG] || label.de || label.en || Object.values(label)[0] || '';
-    }
-    return label || '';
-  }
-
-  const STORAGE_KEY = 'schmitke_windows_offer_state';
-
-  // Apply design variables
+  // Apply design variables early so v2 also benefits from them
   const d = DATA.design || {};
   const style = document.documentElement.style;
   if(d.primaryColor) style.setProperty('--scc-primary', d.primaryColor);
@@ -26,6 +14,175 @@
   if(d.fontFamily)   style.setProperty('--scc-font', d.fontFamily);
   if(typeof d.buttonRadius !== 'undefined') style.setProperty('--scc-btn-radius', d.buttonRadius+'px');
   if(typeof d.cardRadius !== 'undefined') style.setProperty('--scc-card-radius', d.cardRadius+'px');
+
+  function getLabel(label){
+    if(label && typeof label === 'object'){
+      return label[LANG] || label.de || label.en || Object.values(label)[0] || '';
+    }
+    return label || '';
+  }
+
+  if(DATA.v2 && Array.isArray(DATA.v2.elements) && DATA.v2.elements.length){
+    renderV2(DATA.v2);
+    return;
+  }
+  if(!DATA.models){ console.error('SCHMITKE_WINDOWS_DATA missing'); return; }
+
+  function renderV2(settings){
+    const elements = Array.isArray(settings.elements) ? settings.elements.slice() : [];
+    elements.sort((a,b)=> (a.order||0)-(b.order||0));
+    const optionsMap = settings.options_by_element || {};
+    const state = { selections:{} };
+
+    const wrap = document.createElement('div');
+    wrap.className = 'scc-wrap';
+    const grid = document.createElement('div');
+    grid.className = 'scc-grid';
+    const main = document.createElement('div');
+    main.className = 'scc-card';
+    const summary = document.createElement('div');
+    summary.className = 'scc-card';
+    grid.appendChild(main);
+    grid.appendChild(summary);
+    wrap.appendChild(grid);
+    root.innerHTML = '';
+    root.appendChild(wrap);
+
+    function renderElements(){
+      main.innerHTML = '';
+      elements.forEach(function(el){
+        const section = document.createElement('div');
+        section.className = 'scc-section';
+        const title = document.createElement('h3');
+        title.className = 'scc-h';
+        title.textContent = getLabel(el.labels);
+        section.appendChild(title);
+        if(el.info && (el.info.de || el.info.en)){
+          const info = document.createElement('p');
+          info.className = 'scc-sub';
+          info.textContent = getLabel(el.info);
+          section.appendChild(info);
+        }
+
+        if(el.type === 'measurements'){
+          const gridWrap = document.createElement('div');
+          gridWrap.className = 'scc-row';
+          ['width','height','quantity'].forEach(function(field){
+            const label = document.createElement('label');
+            label.textContent = field;
+            const input = document.createElement('input');
+            input.type = 'number';
+            const measurement = state.selections[el.element_key] || {};
+            input.value = (measurement[field] !== undefined && measurement[field] !== null) ? measurement[field] : '';
+            input.addEventListener('input', function(){
+              state.selections[el.element_key] = Object.assign({}, state.selections[el.element_key] || {}, {[field]: Number(input.value)||0});
+              renderSummary();
+            });
+            label.appendChild(input);
+            gridWrap.appendChild(label);
+          });
+          section.appendChild(gridWrap);
+        } else if(el.type === 'upload'){
+          const label = document.createElement('label');
+          label.textContent = 'Upload';
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.addEventListener('change', function(){
+            const file = input.files && input.files[0];
+            state.selections[el.element_key] = { filename: file ? file.name : '' };
+            renderSummary();
+          });
+          label.appendChild(input);
+          const note = document.createElement('textarea');
+          note.rows = 2;
+          note.placeholder = 'Notiz';
+          const uploadState = state.selections[el.element_key] || {};
+          note.value = uploadState.note || '';
+          note.addEventListener('input', function(){
+            state.selections[el.element_key] = Object.assign({}, state.selections[el.element_key] || {}, {note: note.value});
+            renderSummary();
+          });
+          section.appendChild(label);
+          section.appendChild(note);
+        } else {
+          const opts = optionsMap[el.element_key] || [];
+          const gridWrap = document.createElement('div');
+          gridWrap.className = 'swc-option-grid';
+          opts.forEach(function(opt){
+            const tile = document.createElement('div');
+            tile.className = 'swc-option-card';
+            const selectedVal = state.selections[el.element_key];
+            const isSelected = Array.isArray(selectedVal) ? selectedVal.includes(opt.option_code) : selectedVal === opt.option_code;
+            if(isSelected) tile.classList.add('sel');
+            const body = document.createElement('div');
+            body.className = 'swc-option-text';
+            const title = document.createElement('div');
+            title.className = 'swc-option-title';
+            title.textContent = getLabel(opt.labels);
+            body.appendChild(title);
+            tile.appendChild(body);
+            tile.addEventListener('click', function(){
+              if(el.type === 'multi'){
+                const cur = Array.isArray(state.selections[el.element_key]) ? state.selections[el.element_key].slice() : [];
+                const idx = cur.indexOf(opt.option_code);
+                if(idx >= 0){ cur.splice(idx,1); } else { cur.push(opt.option_code); }
+                state.selections[el.element_key] = cur;
+              } else {
+                state.selections[el.element_key] = opt.option_code;
+              }
+              renderElements();
+              renderSummary();
+            });
+            gridWrap.appendChild(tile);
+          });
+          section.appendChild(gridWrap);
+        }
+        main.appendChild(section);
+      });
+    }
+
+    function renderSummary(){
+      summary.innerHTML = '';
+      const title = document.createElement('h3');
+      title.className = 'scc-h';
+      title.textContent = 'Zusammenfassung';
+      summary.appendChild(title);
+      const list = document.createElement('ul');
+      list.className = 'scc-summary-list';
+      Object.entries(state.selections).forEach(function([key, val]){
+        const item = document.createElement('li');
+        let text = key + ': ';
+        if(Array.isArray(val)){
+          text += val.join(', ');
+        } else if(val && typeof val === 'object'){
+          const parts = [];
+          if(val.width) parts.push('B ' + val.width);
+          if(val.height) parts.push('H ' + val.height);
+          if(val.quantity) parts.push('Anz ' + val.quantity);
+          if(val.filename) parts.push(val.filename);
+          if(val.note) parts.push(val.note);
+          text += parts.join(' ');
+        } else {
+          text += val || '';
+        }
+        item.textContent = text;
+        list.appendChild(item);
+      });
+      if(!list.children.length){
+        const empty = document.createElement('p');
+        empty.textContent = 'Keine Auswahl getroffen.';
+        summary.appendChild(empty);
+      } else {
+        summary.appendChild(list);
+      }
+    }
+
+    renderElements();
+    renderSummary();
+  }
+
+  const STORAGE_KEY = 'schmitke_windows_offer_state';
 
   const extrasMap = new Map((DATA.extras||[]).map(ex=>[ex.code, getLabel(ex.label)]));
   const OPTIONS = DATA.options || {};

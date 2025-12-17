@@ -9,6 +9,7 @@
 
 if (!defined('ABSPATH')) exit;
 require_once plugin_dir_path(__FILE__).'includes/config-normalizer.php';
+require_once plugin_dir_path(__FILE__).'includes/config-settings-v2.php';
 
 class Schmitke_Doors_Configurator_V21 {
     const OPT_KEY = 'schmitke_doors_configurator_data_v21';
@@ -828,6 +829,8 @@ class Schmitke_Windows_Configurator {
         wp_register_script('schmitke-windows-configurator', plugins_url('public/configurator-windows.js', __FILE__), [], '0.2.1', true);
 
         $data = $this->get_data();
+        $data['v2'] = Schmitke_Configurator_Settings_V2::get_settings();
+        $data['v2_enabled'] = !empty($data['v2']['elements']);
         if (!empty($data['models']) && is_array($data['models'])) {
             foreach ($data['models'] as &$m) {
                 if (empty($m['image']) && !empty($m['imageId'])) {
@@ -874,6 +877,17 @@ class Schmitke_Windows_Configurator {
         wp_enqueue_style('wp-color-picker');
         wp_enqueue_script('schmitke-doors-admin', plugins_url('admin/admin.js', __FILE__), ['jquery','wp-color-picker'], '0.2.1', true);
         wp_enqueue_style('schmitke-doors-admin', plugins_url('admin/admin.css', __FILE__), [], '0.2.1');
+        wp_enqueue_script(
+            'schmitke-configurator-v2-admin',
+            plugins_url('admin/configurator-v2.js', __FILE__),
+            ['jquery', 'jquery-ui-sortable', 'wp-util'],
+            '0.2.1',
+            true
+        );
+        wp_localize_script('schmitke-configurator-v2-admin', 'SCHMITKE_CONFIG_V2_ADMIN', [
+            'settings' => Schmitke_Configurator_Settings_V2::get_settings(),
+            'optionKey' => Schmitke_Configurator_Settings_V2::OPTION_KEY,
+        ]);
     }
 
     public function admin_menu() {
@@ -1030,11 +1044,18 @@ class Schmitke_Windows_Configurator {
 
     public function admin_page() {
         if (!current_user_can('manage_options')) return;
+        $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'legacy';
+        if ($tab === 'v2') {
+            $this->render_windows_v2_admin();
+            return;
+        }
         $data = $this->get_data();
         $opt = self::OPT_KEY;
         ?>
         <div class="wrap schmitke-admin">
             <h1>Schmitke Fenster Konfigurator – Einstellungen</h1>
+
+            <?php $this->render_windows_nav_tabs($tab); ?>
 
             <form method="post" action="options.php">
                 <?php settings_fields('schmitke_windows_configurator_group'); ?>
@@ -1456,6 +1477,47 @@ class Schmitke_Windows_Configurator {
         wp_enqueue_style('schmitke-windows-configurator');
         wp_enqueue_script('schmitke-windows-configurator');
         return '<div id="schmitke-window-configurator"></div>';
+    }
+
+    private function render_windows_nav_tabs($active) {
+        $tabs = [
+            'legacy' => __('Konfigurator v1', 'schmitke-doors'),
+            'v2' => __('Konfigurator v2 (Fenster)', 'schmitke-doors'),
+        ];
+        $base = admin_url('options-general.php?page=schmitke-windows-configurator');
+        echo '<h2 class="nav-tab-wrapper">';
+        foreach ($tabs as $key => $label) {
+            $class = 'nav-tab'.($active === $key ? ' nav-tab-active' : '');
+            $url = add_query_arg('tab', $key, $base);
+            echo '<a class="'.esc_attr($class).'" href="'.esc_url($url).'">'.esc_html($label).'</a>';
+        }
+        echo '</h2>';
+    }
+
+    private function render_windows_v2_admin() {
+        $settings = Schmitke_Configurator_Settings_V2::get_settings();
+        $opt = Schmitke_Configurator_Settings_V2::OPTION_KEY;
+        ?>
+        <div class="wrap schmitke-admin">
+            <h1><?php esc_html_e('Schmitke Fenster Konfigurator – v2', 'schmitke-doors'); ?></h1>
+            <?php $this->render_windows_nav_tabs('v2'); ?>
+            <div class="notice notice-info"><p><?php printf(esc_html__('Frontend uses v2 data: %s', 'schmitke-doors'), !empty($settings['elements']) ? esc_html__('yes', 'schmitke-doors') : esc_html__('no', 'schmitke-doors')); ?></p></div>
+            <form method="post" action="options.php" id="schmitke-configurator-v2-form">
+                <?php settings_fields('schmitke_configurator_settings_v2_group'); ?>
+                <input type="hidden" id="schmitke-configurator-v2-input" name="<?php echo esc_attr($opt); ?>" value="<?php echo esc_attr(wp_json_encode($settings)); ?>" />
+
+                <div id="schmitke-configurator-v2-app" class="schmitke-v2-admin" data-option-key="<?php echo esc_attr($opt); ?>">
+                    <p><?php esc_html_e('Lade und bearbeite Elemente, Optionen und Regeln direkt in der Oberfläche.', 'schmitke-doors'); ?></p>
+                </div>
+
+                <h2><?php esc_html_e('JSON Fallback', 'schmitke-doors'); ?></h2>
+                <p class="description"><?php esc_html_e('Falls benötigt, kann das Settings-JSON hier manuell editiert werden.', 'schmitke-doors'); ?></p>
+                <textarea id="schmitke-configurator-v2-json" class="large-text code" rows="8"><?php echo esc_textarea(wp_json_encode($settings, JSON_PRETTY_PRINT)); ?></textarea>
+
+                <?php submit_button(__('Einstellungen speichern', 'schmitke-doors')); ?>
+            </form>
+        </div>
+        <?php
     }
 }
 
