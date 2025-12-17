@@ -171,6 +171,30 @@ class Schmitke_Configurator_Settings_V2 {
         ];
     }
 
+    private static function sanitize_global_ui($settings, $defaults) {
+        $source = is_array($settings) ? $settings : [];
+        $allowedLocaleModes = ['wp_locale', 'force_de', 'force_en'];
+
+        $stickySummary = isset($source['sticky_summary_enabled'])
+            ? (bool)$source['sticky_summary_enabled']
+            : ($defaults['sticky_summary_enabled'] ?? true);
+
+        $accordion = isset($source['accordion_enabled'])
+            ? (bool)$source['accordion_enabled']
+            : ($defaults['accordion_enabled'] ?? true);
+
+        $localeMode = isset($source['locale_mode']) ? sanitize_key($source['locale_mode']) : ($defaults['locale_mode'] ?? 'wp_locale');
+        if (!in_array($localeMode, $allowedLocaleModes, true)) {
+            $localeMode = $defaults['locale_mode'] ?? 'wp_locale';
+        }
+
+        return [
+            'sticky_summary_enabled' => $stickySummary,
+            'accordion_enabled' => $accordion,
+            'locale_mode' => $localeMode,
+        ];
+    }
+
     public static function default_settings() {
         return [
             'elements' => self::seed_elements(),
