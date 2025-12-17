@@ -55,6 +55,15 @@ Für jedes Modell stehen folgende Felder zur Verfügung:
 
 Alle Eingaben werden sanitisiert; leere Listen fallen automatisch auf die mitgelieferten Default-Werte zurück.
 
+## 🗂️ V2 Settings (zentral)
+Für neue, frei editierbare Elemente/Optionen wird ein einziges Optionsobjekt `schmitke_configurator_settings_v2` genutzt. Es enthält:
+- `elements`: Metadaten zu allen Elementen (Key, Typ `single|multi|measurements|upload`, Labels DE/EN, Sichtbarkeit, Pflicht, Accordion-Default, Order, Search-Flag, Spaltenbreiten).
+- `options_by_element`: Optionslisten je Element (option_code, Labels DE/EN, Bild-ID, Default-Flag, Preis/Einheit, Disabled).
+- `rules`: Bedingungslogik (`when` mit AND/OR + `then` Aktionen: show/hide/filter/disable/set_required/unset_required).
+- `global_ui`: Sticky Summary + Accordion Toggle + Locale Mode.
+
+Die Seed-Daten decken alle geforderten Elemente ab (Typ, Material, Verglasung, Maße & Anzahl, Ornamentglas, Schallschutzglas, Kundenfoto-Upload etc.). Details und Beispiele siehe `docs/CONFIG_SETTINGS_V2.md`.
+
 ## 🧰 Entwicklung & Hinweise
 - Zentrale Datenbeschaffung erfolgt über `get_option` mit Fallback auf `default_data()`.
 - `sanitize_data()` reinigt alle Admin-Eingaben, inklusive Listen, Media-URLs und Labels.
@@ -64,6 +73,13 @@ Alle Eingaben werden sanitisiert; leere Listen fallen automatisch auf die mitgel
 - `schmitke-door-configurator.php` – Haupt-Plugin-Datei mit Shortcode, Settings-Page und Sanitizing.
 - `admin/` – Assets für den Admin-Bereich (Color-Picker, Mediathek-Integration, Styling).
 - `public/` – Frontend-Assets des Konfigurators.
+
+## 🗺️ Architecture Map
+- `schmitke-door-configurator.php`: Bootstrapping, Shortcodes, Asset-Registrierung, Einstellungs-Registration.
+- `includes/config-normalizer.php`: Legacy-Datenquellen normalisieren (Doors/Windows), Standard-Element-Metadaten ergänzen.
+- `includes/config-settings-v2.php`: Zentrales Settings-Format `schmitke_configurator_settings_v2` (Seed, Sanitizing, Registrierung).
+- `admin/admin.js` & `admin/admin.css`: UI-Logik und Styling für die Einstellungen im WordPress-Backend.
+- `public/configurator.js` & `public/configurator.css`: Frontend-Rendering und Styling der Konfiguratoren.
 
 ## 🆘 Support
 Fragen oder Feature-Wünsche können im Projekt-Repository als Issue erfasst werden.
