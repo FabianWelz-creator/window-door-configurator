@@ -830,6 +830,9 @@ class Schmitke_Windows_Configurator {
 
         $data = $this->get_data();
         $data['v2'] = Schmitke_Configurator_Settings_V2::get_settings();
+        if (!empty($data['v2']['design'])) {
+            $data['design'] = array_merge($data['design'] ?? [], $data['v2']['design']);
+        }
         $data['v2_enabled'] = !empty($data['v2']['elements']);
         if (!empty($data['models']) && is_array($data['models'])) {
             foreach ($data['models'] as &$m) {

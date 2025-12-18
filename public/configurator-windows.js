@@ -32,7 +32,15 @@
     const elements = Array.isArray(settings.elements) ? settings.elements.slice() : [];
     elements.sort((a,b)=> (a.order||0)-(b.order||0));
     const optionsMap = settings.options_by_element || {};
+    const elementLabels = {};
+    elements.forEach(el=>{ elementLabels[el.element_key] = getLabel(el.labels); });
     const state = { selections:{} };
+    const measurementLabels = (settings.measurements && settings.measurements.labels) ? settings.measurements.labels : {};
+    const getMeasurementLabel = (key, fallback) => {
+      const lbl = measurementLabels[key];
+      if(lbl) return getLabel(lbl);
+      return fallback || key;
+    };
 
     const wrap = document.createElement('div');
     wrap.className = 'scc-wrap';
@@ -69,7 +77,7 @@
           gridWrap.className = 'scc-row';
           ['width','height','quantity'].forEach(function(field){
             const label = document.createElement('label');
-            label.textContent = field;
+            label.textContent = getMeasurementLabel(field, field);
             const input = document.createElement('input');
             input.type = 'number';
             const measurement = state.selections[el.element_key] || {};
@@ -84,7 +92,7 @@
           section.appendChild(gridWrap);
         } else if(el.type === 'upload'){
           const label = document.createElement('label');
-          label.textContent = 'Upload';
+          label.textContent = getMeasurementLabel('upload', 'Upload');
           const input = document.createElement('input');
           input.type = 'file';
           input.accept = 'image/*';
@@ -96,7 +104,7 @@
           label.appendChild(input);
           const note = document.createElement('textarea');
           note.rows = 2;
-          note.placeholder = 'Notiz';
+          note.placeholder = getMeasurementLabel('note', 'Notiz');
           const uploadState = state.selections[el.element_key] || {};
           note.value = uploadState.note || '';
           note.addEventListener('input', function(){
@@ -152,14 +160,15 @@
       list.className = 'scc-summary-list';
       Object.entries(state.selections).forEach(function([key, val]){
         const item = document.createElement('li');
-        let text = key + ': ';
+        const label = elementLabels[key] || key;
+        let text = label + ': ';
         if(Array.isArray(val)){
           text += val.join(', ');
         } else if(val && typeof val === 'object'){
           const parts = [];
-          if(val.width) parts.push('B ' + val.width);
-          if(val.height) parts.push('H ' + val.height);
-          if(val.quantity) parts.push('Anz ' + val.quantity);
+          if(val.width) parts.push(getMeasurementLabel('width', 'B') + ' ' + val.width);
+          if(val.height) parts.push(getMeasurementLabel('height', 'H') + ' ' + val.height);
+          if(val.quantity) parts.push(getMeasurementLabel('quantity', 'Anz') + ' ' + val.quantity);
           if(val.filename) parts.push(val.filename);
           if(val.note) parts.push(val.note);
           text += parts.join(' ');
