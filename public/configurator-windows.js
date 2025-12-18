@@ -123,6 +123,17 @@
             const selectedVal = state.selections[el.element_key];
             const isSelected = Array.isArray(selectedVal) ? selectedVal.includes(opt.option_code) : selectedVal === opt.option_code;
             if(isSelected) tile.classList.add('sel');
+            if(opt.image){
+              const img = document.createElement('img');
+              img.src = opt.image;
+              img.alt = getLabel(opt.labels) || opt.option_code || 'Option';
+              img.onerror = function(){ this.style.display='none'; };
+              tile.appendChild(img);
+            } else {
+              const placeholder = document.createElement('div');
+              placeholder.className = 'swc-option-placeholder';
+              tile.appendChild(placeholder);
+            }
             const body = document.createElement('div');
             body.className = 'swc-option-text';
             const title = document.createElement('div');

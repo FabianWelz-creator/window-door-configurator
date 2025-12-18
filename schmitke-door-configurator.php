@@ -833,6 +833,22 @@ class Schmitke_Windows_Configurator {
         if (!empty($data['v2']['design'])) {
             $data['design'] = array_merge($data['design'] ?? [], $data['v2']['design']);
         }
+        if (!empty($data['v2']['options_by_element']) && is_array($data['v2']['options_by_element'])) {
+            foreach ($data['v2']['options_by_element'] as &$optionGroup) {
+                if (!is_array($optionGroup)) continue;
+                foreach ($optionGroup as &$opt) {
+                    if (!is_array($opt)) continue;
+                    if (empty($opt['image']) && !empty($opt['image_id'])) {
+                        $url = wp_get_attachment_image_url(intval($opt['image_id']), 'large');
+                        if ($url) {
+                            $opt['image'] = $url;
+                        }
+                    }
+                }
+                unset($opt);
+            }
+            unset($optionGroup);
+        }
         $data['v2_enabled'] = !empty($data['v2']['elements']);
         if (!empty($data['models']) && is_array($data['models'])) {
             foreach ($data['models'] as &$m) {

@@ -73,6 +73,66 @@
 
   normalizeSettings();
 
+  const attachmentCache = {};
+  function resolveAttachmentUrl(id){
+    return new Promise(function(resolve){
+      if(!id || !wp || !wp.media || !wp.media.attachment){
+        resolve('');
+        return;
+      }
+      if(attachmentCache[id]){
+        resolve(attachmentCache[id]);
+        return;
+      }
+      try{
+        const attachment = wp.media.attachment(id);
+        if(!attachment){
+          resolve('');
+          return;
+        }
+        attachment.fetch().then(function(){
+          const data = attachment.toJSON ? attachment.toJSON() : attachment.attributes || {};
+          const url = (data.sizes && data.sizes.thumbnail && data.sizes.thumbnail.url) ? data.sizes.thumbnail.url : (data.url || '');
+          attachmentCache[id] = url || '';
+          resolve(url || '');
+        }).catch(function(){ resolve(''); });
+      } catch(e){
+        resolve('');
+      }
+    });
+  }
+
+  function pickOptionImage(option, previewEl){
+    if(!wp || !wp.media) return;
+    const frame = wp.media({
+      title: 'Bild auswählen',
+      button: { text: 'Übernehmen' },
+      multiple: false
+    });
+    frame.on('select', function(){
+      const attachment = frame.state().get('selection').first().toJSON();
+      option.image_id = attachment.id || 0;
+      const url = (attachment.sizes && attachment.sizes.thumbnail && attachment.sizes.thumbnail.url) ? attachment.sizes.thumbnail.url : (attachment.url || '');
+      if(previewEl && previewEl.length){
+        previewEl.attr('src', url);
+      }
+      syncInputs();
+    });
+    frame.open();
+  }
+
+  function applyOptionPreview(previewEl, imageId){
+    if(!previewEl || !previewEl.length) return;
+    if(!imageId){
+      previewEl.attr('src','');
+      return;
+    }
+    resolveAttachmentUrl(imageId).then(function(url){
+      if(previewEl.closest('body').length === 0) return;
+      previewEl.attr('src', url || '');
+    });
+  }
+
   function syncInputs(){
     hidden.val(JSON.stringify(settings));
     if(jsonFallback.length){
@@ -178,6 +238,15 @@
       addToggle(optBody, 'is_default', opt, 'Default');
       addNumber(optBody, 'price', opt, 'Preis', 0, null, true);
       $('<label>Unit <input type="text"></label>').find('input').val(opt.unit||'').on('input', function(){ opt.unit = $(this).val(); }).end().appendTo(optBody);
+
+      const imageField = $('<div class="schmitke-image-field"></div>').appendTo(optBody);
+      $('<label>Bild (WP-Mediathek)</label>').appendTo(imageField);
+      const imgRow = $('<div class="schmitke-image-row"></div>').appendTo(imageField);
+      const preview = $('<img class="schmitke-image-preview" alt="">').appendTo(imgRow);
+      const imgBtns = $('<div class="schmitke-image-buttons"></div>').appendTo(imgRow);
+      $('<button type="button" class="button">Bild wählen</button>').on('click', function(){ pickOptionImage(opt, preview); }).appendTo(imgBtns);
+      $('<button type="button" class="button">Entfernen</button>').on('click', function(){ opt.image_id = 0; preview.attr('src',''); syncInputs(); }).appendTo(imgBtns);
+      applyOptionPreview(preview, opt.image_id);
 
       optCard.appendTo(optsWrap);
     });
