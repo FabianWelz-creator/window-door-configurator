@@ -35,11 +35,24 @@
     const elementLabels = {};
     elements.forEach(el=>{ elementLabels[el.element_key] = getLabel(el.labels); });
     const state = { selections:{} };
+    const accordionEnabled = settings?.global_ui?.accordion_enabled !== false;
+    const elementOpenState = new Map();
     const measurementLabels = (settings.measurements && settings.measurements.labels) ? settings.measurements.labels : {};
     const getMeasurementLabel = (key, fallback) => {
       const lbl = measurementLabels[key];
       if(lbl) return getLabel(lbl);
       return fallback || key;
+    };
+    const getSectionOpen = (key, idx) => {
+      if(!accordionEnabled) return true;
+      if(elementOpenState.has(key)) return elementOpenState.get(key);
+      const open = !!(elements[idx] && elements[idx].accordion_default_open) || idx === 0;
+      elementOpenState.set(key, open);
+      return open;
+    };
+    const setSectionOpen = (key, val) => {
+      if(!accordionEnabled) return;
+      elementOpenState.set(key, !!val);
     };
 
     const wrap = document.createElement('div');
@@ -53,6 +66,7 @@
     grid.appendChild(main);
     grid.appendChild(summary);
     wrap.appendChild(grid);
+    wrap.classList.toggle('accordion-enabled', accordionEnabled);
     root.innerHTML = '';
     root.appendChild(wrap);
 
@@ -152,24 +166,53 @@
       const ruleEffects = evaluateRules();
       sanitizeSelections(ruleEffects);
       const requiredFlags = {};
-      elements.forEach(function(el){
+      elements.forEach(function(el, idx){
         if(ruleEffects.hidden.has(el.element_key)) return;
         const visibleOverride = ruleEffects.visibility.has(el.element_key) ? ruleEffects.visibility.get(el.element_key) : undefined;
         const isVisible = (visibleOverride !== undefined) ? visibleOverride : (el.visible_default !== false);
         if(!isVisible) return;
         const required = ruleEffects.required.has(el.element_key) ? ruleEffects.required.get(el.element_key) : !!el.required_default;
         requiredFlags[el.element_key] = required;
+        const sectionKey = el.element_key || ('el_'+idx);
         const section = document.createElement('div');
         section.className = 'scc-section';
+        const header = document.createElement('div');
+        header.className = 'scc-section-head';
+        const headerText = document.createElement('div');
+        headerText.className = 'scc-section-text';
         const title = document.createElement('h3');
         title.className = 'scc-h';
         title.textContent = getLabel(el.labels) + (required ? ' *' : '');
-        section.appendChild(title);
+        headerText.appendChild(title);
+        header.appendChild(headerText);
+        const body = document.createElement('div');
+        body.className = 'scc-section-body';
+        const isOpen = getSectionOpen(sectionKey, idx);
+        if(accordionEnabled){
+          section.classList.toggle('open', isOpen);
+          body.hidden = !isOpen;
+          const toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 'scc-section-toggle';
+          toggle.setAttribute('aria-expanded', isOpen);
+          toggle.innerHTML = '<span class="scc-toggle-icon" aria-hidden="true"></span>';
+          toggle.addEventListener('click', function(){
+            const next = !section.classList.contains('open');
+            setSectionOpen(sectionKey, next);
+            section.classList.toggle('open', next);
+            body.hidden = !next;
+            toggle.setAttribute('aria-expanded', next);
+          });
+          header.appendChild(toggle);
+        } else {
+          section.classList.add('open');
+        }
+        section.appendChild(header);
         if(el.info && (el.info.de || el.info.en)){
           const info = document.createElement('p');
           info.className = 'scc-sub';
           info.textContent = getLabel(el.info);
-          section.appendChild(info);
+          body.appendChild(info);
         }
 
         if(el.type === 'measurements'){
@@ -189,7 +232,7 @@
             label.appendChild(input);
             gridWrap.appendChild(label);
           });
-          section.appendChild(gridWrap);
+          body.appendChild(gridWrap);
         } else if(el.type === 'upload'){
           const label = document.createElement('label');
           label.textContent = getMeasurementLabel('upload', 'Upload');
@@ -211,8 +254,8 @@
             state.selections[el.element_key] = Object.assign({}, state.selections[el.element_key] || {}, {note: note.value});
             renderSummary();
           });
-          section.appendChild(label);
-          section.appendChild(note);
+          body.appendChild(label);
+          body.appendChild(note);
         } else {
           const allowedSet = ruleEffects.filters.get(el.element_key);
           const opts = (optionsMap[el.element_key] || []).filter(opt=>{
@@ -268,8 +311,9 @@
             });
             gridWrap.appendChild(tile);
           });
-          section.appendChild(gridWrap);
+          body.appendChild(gridWrap);
         }
+        section.appendChild(body);
         main.appendChild(section);
       });
       state.requiredFlags = requiredFlags;

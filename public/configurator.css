@@ -12,6 +12,16 @@
 .scc-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
 @media(max-width:900px){.scc-grid{grid-template-columns:1fr}}
 .scc-card{background:#fff;border:1px solid var(--scc-border);border-radius:var(--scc-card-radius);padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.scc-section{border-bottom:1px solid var(--scc-border);padding:10px 0}
+.scc-section:last-child{border-bottom:0}
+.scc-section-head{display:flex;align-items:center;gap:10px}
+.scc-section-text{flex:1;min-width:0}
+.accordion-enabled .scc-section-body{margin-top:8px}
+.accordion-enabled .scc-section-body[hidden]{display:none}
+.scc-section-toggle{border:1px solid var(--scc-border);background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:8px;cursor:pointer}
+.scc-section-toggle:focus{outline:2px solid var(--scc-primary);outline-offset:1px}
+.scc-toggle-icon{border:solid var(--scc-text);border-width:0 2px 2px 0;display:inline-block;padding:4px;transform:rotate(45deg);transition:transform .2s ease}
+.scc-section.open .scc-toggle-icon{transform:rotate(-135deg)}
 .scc-h{font-size:20px;font-weight:700;margin:0 0 8px}
 .scc-sub{color:#555;font-size:14px;margin-bottom:12px}
 .scc-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
