@@ -42,6 +42,20 @@
     global_ui: {sticky_summary_enabled:true, accordion_enabled:true, locale_mode:'wp_locale'}
   };
   let settings = $.extend(true, {}, defaults, data.settings || {});
+  const elementOpenState = new Map();
+
+  function captureElementOpenState(){
+    app.find('.v2-element').each(function(){
+      const uid = $(this).data('uid');
+      if(!uid) return;
+      elementOpenState.set(uid, $(this).hasClass('open'));
+    });
+  }
+
+  function getElementOpenState(el, idx){
+    if(elementOpenState.has(el.__uid)) return elementOpenState.get(el.__uid);
+    return !!el.accordion_default_open || idx === 0;
+  }
 
   function generateUid(){
     return 'el_' + Math.random().toString(36).slice(2) + '_' + Date.now();
@@ -160,8 +174,8 @@
   }
 
   function elementTemplate(el, idx){
-    const card = $('<div class="schmitke-card v2-element"></div>');
-    const startOpen = !!el.accordion_default_open || idx === 0;
+    const card = $('<div class="schmitke-card v2-element"></div>').attr('data-uid', el.__uid);
+    const startOpen = getElementOpenState(el, idx);
     if(startOpen) card.addClass('open');
     const head = $('<div class="schmitke-model-head"></div>').appendTo(card);
     const elLabelDe = (el.labels && el.labels.de) ? el.labels.de : '';
@@ -182,7 +196,9 @@
 
     $('<label>Element Key <input type="text"></label>').find('input').val(el.element_key).on('input', function(){
       el.element_key = $(this).val();
-      render();
+      const titleDe = (el.labels && el.labels.de) ? el.labels.de : '';
+      titleEl.text(titleDe || el.element_key || 'Element');
+      syncInputs();
     }).end().appendTo(grid);
 
     const typeSel = $('<select></select>')
@@ -454,6 +470,7 @@
   }
 
   function render(){
+    captureElementOpenState();
     normalizeSettings();
     app.empty();
     app.append(renderDesignSection());
@@ -470,7 +487,12 @@
     });
     $('<p><button type="button" class="button button-secondary">+ Element hinzufügen</button></p>')
       .find('button')
-      .on('click', function(){ settings.elements.push(defaultElement()); render(); })
+      .on('click', function(){
+        const newEl = defaultElement();
+        settings.elements.push(newEl);
+        elementOpenState.set(newEl.__uid, true);
+        render();
+      })
       .end()
       .appendTo(list);
 
