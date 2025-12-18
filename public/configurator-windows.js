@@ -56,14 +56,114 @@
     root.innerHTML = '';
     root.appendChild(wrap);
 
+    function evaluateRuleConditions(rule){
+      if(!rule || !rule.when || !Array.isArray(rule.when.conditions)) return false;
+      const type = (rule.when.type || 'and').toLowerCase() === 'or' ? 'or' : 'and';
+      const evalCond = (cond)=>{
+        if(!cond || !cond.element_key) return false;
+        const val = state.selections[cond.element_key];
+        const operator = cond.operator || 'equals';
+        const cmpVal = cond.value;
+        switch(operator){
+          case 'exists':
+            if(Array.isArray(val)) return val.length>0;
+            return val !== undefined && val !== null && val !== '';
+          case 'equals':
+            if(Array.isArray(val)) return val.includes(cmpVal);
+            return val === cmpVal;
+          case 'not_equals':
+            if(Array.isArray(val)) return !val.includes(cmpVal);
+            return val !== cmpVal;
+          case 'in':
+            if(!Array.isArray(cmpVal)) return false;
+            if(Array.isArray(val)) return val.some(v=>cmpVal.includes(v));
+            return cmpVal.includes(val);
+          case 'not_in':
+            if(!Array.isArray(cmpVal)) return true;
+            if(Array.isArray(val)) return val.every(v=>!cmpVal.includes(v));
+            return !cmpVal.includes(val);
+          case 'contains':
+            if(Array.isArray(val)) return val.includes(cmpVal);
+            if(typeof val === 'string') return val.indexOf(cmpVal)>=0;
+            return false;
+          default:
+            return false;
+        }
+      };
+      const matches = rule.when.conditions.map(evalCond);
+      return type === 'or' ? matches.some(Boolean) : matches.every(Boolean);
+    }
+
+    function evaluateRules(){
+      const rules = Array.isArray(settings.rules) ? settings.rules.slice().sort((a,b)=> (a.priority||0)-(b.priority||0)) : [];
+      const visibility = new Map();
+      const hidden = new Set();
+      const filters = new Map();
+      const disabled = new Map();
+      const required = new Map();
+      rules.forEach(rule=>{
+        if(!evaluateRuleConditions(rule)) return;
+        const actions = rule.then || {};
+        (actions.show_elements || []).forEach(k=> visibility.set(k, true));
+        (actions.hide_elements || []).forEach(k=> { hidden.add(k); visibility.set(k, false); });
+        (actions.filter_options || []).forEach(entry=>{
+          if(!entry || !entry.element_key || !Array.isArray(entry.allowed)) return;
+          const allowedSet = new Set(entry.allowed);
+          if(filters.has(entry.element_key)){
+            const cur = filters.get(entry.element_key);
+            const intersection = new Set();
+            cur.forEach(code=>{ if(allowedSet.has(code)) intersection.add(code); });
+            filters.set(entry.element_key, intersection);
+          } else {
+            filters.set(entry.element_key, allowedSet);
+          }
+        });
+        (actions.disable_options || []).forEach(entry=>{
+          if(!entry || !entry.element_key || !Array.isArray(entry.codes)) return;
+          const map = disabled.get(entry.element_key) || new Map();
+          entry.codes.forEach(code=>{
+            map.set(code, entry.reason || null);
+          });
+          disabled.set(entry.element_key, map);
+        });
+        (actions.set_required || []).forEach(k=> required.set(k, true));
+        (actions.unset_required || []).forEach(k=> required.set(k, false));
+      });
+      return {visibility, hidden, filters, disabled, required};
+    }
+
+    function sanitizeSelections(ruleEffects){
+      elements.forEach(el=>{
+        const allowed = ruleEffects.filters.get(el.element_key);
+        if(!allowed) return;
+        const sel = state.selections[el.element_key];
+        if(Array.isArray(sel)){
+          const filtered = sel.filter(code=>allowed.has(code));
+          if(filtered.length){ state.selections[el.element_key] = filtered; }
+          else { delete state.selections[el.element_key]; }
+        } else if(sel && !allowed.has(sel)){
+          delete state.selections[el.element_key];
+        }
+      });
+    }
+
     function renderElements(){
       main.innerHTML = '';
+      const ruleEffects = evaluateRules();
+      sanitizeSelections(ruleEffects);
+      const requiredFlags = {};
       elements.forEach(function(el){
+        if(ruleEffects.hidden.has(el.element_key)) return;
+        const visibleOverride = ruleEffects.visibility.has(el.element_key) ? ruleEffects.visibility.get(el.element_key) : undefined;
+        const isVisible = (visibleOverride !== undefined) ? visibleOverride : (el.visible_default !== false);
+        if(!isVisible) return;
+        const required = ruleEffects.required.has(el.element_key) ? ruleEffects.required.get(el.element_key) : !!el.required_default;
+        requiredFlags[el.element_key] = required;
         const section = document.createElement('div');
         section.className = 'scc-section';
         const title = document.createElement('h3');
         title.className = 'scc-h';
-        title.textContent = getLabel(el.labels);
+        title.textContent = getLabel(el.labels) + (required ? ' *' : '');
         section.appendChild(title);
         if(el.info && (el.info.de || el.info.en)){
           const info = document.createElement('p');
@@ -114,7 +214,11 @@
           section.appendChild(label);
           section.appendChild(note);
         } else {
-          const opts = optionsMap[el.element_key] || [];
+          const allowedSet = ruleEffects.filters.get(el.element_key);
+          const opts = (optionsMap[el.element_key] || []).filter(opt=>{
+            if(!allowedSet) return true;
+            return allowedSet.has(opt.option_code);
+          });
           const gridWrap = document.createElement('div');
           gridWrap.className = 'swc-option-grid';
           opts.forEach(function(opt){
@@ -123,6 +227,14 @@
             const selectedVal = state.selections[el.element_key];
             const isSelected = Array.isArray(selectedVal) ? selectedVal.includes(opt.option_code) : selectedVal === opt.option_code;
             if(isSelected) tile.classList.add('sel');
+            const disabledMap = ruleEffects.disabled.get(el.element_key);
+            const disableReason = disabledMap ? disabledMap.get(opt.option_code) : null;
+            const isDisabled = !!disableReason;
+            if(isDisabled){
+              tile.classList.add('swc-option-disabled');
+              const reasonLabel = getLabel(disableReason);
+              if(reasonLabel) tile.title = reasonLabel;
+            }
             if(opt.image){
               const img = document.createElement('img');
               img.src = opt.image;
@@ -142,6 +254,7 @@
             body.appendChild(title);
             tile.appendChild(body);
             tile.addEventListener('click', function(){
+              if(isDisabled) return;
               if(el.type === 'multi'){
                 const cur = Array.isArray(state.selections[el.element_key]) ? state.selections[el.element_key].slice() : [];
                 const idx = cur.indexOf(opt.option_code);
@@ -159,6 +272,7 @@
         }
         main.appendChild(section);
       });
+      state.requiredFlags = requiredFlags;
     }
 
     function renderSummary(){
