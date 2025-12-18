@@ -9,7 +9,33 @@
     syncInputs();
   });
 
+  function defaultDesign(){
+    return {
+      primaryColor: '#111111',
+      accentColor: '#f2f2f2',
+      textColor: '#111111',
+      borderColor: '#e7e7e7',
+      fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
+      buttonRadius: 10,
+      cardRadius: 14
+    };
+  }
+
+  function defaultMeasurements(){
+    return {
+      labels: {
+        width: {de:'Breite (mm)', en:'Width (mm)'},
+        height: {de:'Höhe (mm)', en:'Height (mm)'},
+        quantity: {de:'Anzahl', en:'Quantity'},
+        note: {de:'Notiz', en:'Note'},
+        upload: {de:'Upload', en:'Upload'}
+      }
+    };
+  }
+
   const defaults = {
+    design: defaultDesign(),
+    measurements: defaultMeasurements(),
     elements: [],
     options_by_element: {},
     rules: [],
@@ -22,6 +48,8 @@
   }
 
   function normalizeSettings(){
+    settings.design = $.extend(true, {}, defaultDesign(), settings.design || {});
+    settings.measurements = $.extend(true, {}, defaultMeasurements(), settings.measurements || {});
     const incomingOptions = settings.options_by_element || {};
     const mappedOptions = {};
     settings.elements = (settings.elements || []).map(function(el, idx){
@@ -73,10 +101,15 @@
 
   function elementTemplate(el, idx){
     const card = $('<div class="schmitke-card v2-element"></div>');
+    const startOpen = !!el.accordion_default_open || idx === 0;
+    if(startOpen) card.addClass('open');
     const head = $('<div class="schmitke-model-head"></div>').appendTo(card);
     const elLabelDe = (el.labels && el.labels.de) ? el.labels.de : '';
-    $('<strong class="schmitke-model-title"></strong>').text(elLabelDe || el.element_key || 'Element').appendTo(head);
+    const titleEl = $('<strong class="schmitke-model-title"></strong>').text(elLabelDe || el.element_key || 'Element').appendTo(head);
     const actions = $('<div class="schmitke-model-actions"></div>').appendTo(head);
+    $('<button type="button" class="button schmitke-toggle"></button>')
+      .text(startOpen ? 'Schließen' : 'Öffnen')
+      .appendTo(actions);
     $('<button type="button" class="button">'+('⬆')+'</button>').on('click', function(){ moveElement(idx, -1); }).appendTo(actions);
     $('<button type="button" class="button">'+('⬇')+'</button>').on('click', function(){ moveElement(idx, 1); }).appendTo(actions);
     $('<button type="button" class="button button-link-delete">'+('Löschen')+'</button>').on('click', function(){
@@ -101,7 +134,7 @@
       .on('change', function(){ el.type = $(this).val(); });
     $('<label>Type</label>').append(typeSel).appendTo(grid);
 
-    $('<label>Label DE <input type="text"></label>').find('input').val((el.labels && el.labels.de) || '').on('input', function(){ el.labels.de = $(this).val(); }).end().appendTo(grid);
+    $('<label>Label DE <input type="text"></label>').find('input').val((el.labels && el.labels.de) || '').on('input', function(){ el.labels.de = $(this).val(); titleEl.text(el.labels.de || el.element_key || 'Element'); }).end().appendTo(grid);
     $('<label>Label EN <input type="text"></label>').find('input').val((el.labels && el.labels.en) || '').on('input', function(){ el.labels.en = $(this).val(); }).end().appendTo(grid);
     $('<label>Info DE <textarea rows="2"></textarea></label>').find('textarea').val((el.info && el.info.de) || '').on('input', function(){ el.info.de = $(this).val(); }).end().appendTo(grid);
     $('<label>Info EN <textarea rows="2"></textarea></label>').find('textarea').val((el.info && el.info.en) || '').on('input', function(){ el.info.en = $(this).val(); }).end().appendTo(grid);
@@ -150,6 +183,84 @@
     });
 
     // Rules placeholder appended only once after loop
+    return card;
+  }
+
+  function renderDesignSection(){
+    const card = $('<div class="schmitke-card open"></div>');
+    const head = $('<div class="schmitke-model-head"></div>').appendTo(card);
+    $('<strong class="schmitke-model-title">Design</strong>').appendTo(head);
+    $('<div class="schmitke-model-actions"></div>').appendTo(head).append('<span class="description">Farben & Typografie</span>');
+
+    const body = $('<div class="schmitke-model-body"></div>').appendTo(card);
+    const grid = $('<div class="schmitke-design-grid"></div>').appendTo(body);
+
+    const addColor = function(label, key){
+      $('<label>'+label+'<input type="text" class="schmitke-color"></label>')
+        .find('input')
+        .val(settings.design[key] || '')
+        .on('input change', function(){ settings.design[key] = $(this).val(); })
+        .end()
+        .appendTo(grid);
+    };
+
+    addColor('Primary Color', 'primaryColor');
+    addColor('Accent Color', 'accentColor');
+    addColor('Text Color', 'textColor');
+    addColor('Border Color', 'borderColor');
+
+    $('<label>Font Family <input type="text"></label>')
+      .find('input')
+      .val(settings.design.fontFamily || '')
+      .on('input', function(){ settings.design.fontFamily = $(this).val(); })
+      .end()
+      .appendTo(grid);
+
+    addNumber(grid, 'buttonRadius', settings.design, 'Button Radius (px)', 0, 40);
+    addNumber(grid, 'cardRadius', settings.design, 'Card Radius (px)', 0, 40);
+
+    return card;
+  }
+
+  function renderMeasurementsSection(){
+    const card = $('<div class="schmitke-card open"></div>');
+    const head = $('<div class="schmitke-model-head"></div>').appendTo(card);
+    $('<strong class="schmitke-model-title">Maße & Upload Labels</strong>').appendTo(head);
+    $('<div class="schmitke-model-actions"></div>').appendTo(head).append('<span class="description">Angezeigte Feldnamen im Frontend</span>');
+
+    const body = $('<div class="schmitke-model-body"></div>').appendTo(card);
+    const labels = settings.measurements.labels || {};
+    const rows = [
+      {key:'width', title:'Breite'},
+      {key:'height', title:'Höhe'},
+      {key:'quantity', title:'Anzahl'},
+      {key:'note', title:'Notiz'},
+      {key:'upload', title:'Upload'},
+    ];
+
+    rows.forEach(function(row){
+      const grid = $('<div class="schmitke-model-grid"></div>').appendTo(body);
+      $('<label>'+row.title+' (DE) <input type="text"></label>')
+        .find('input')
+        .val((labels[row.key] && labels[row.key].de) || '')
+        .on('input', function(){
+          settings.measurements.labels[row.key] = settings.measurements.labels[row.key] || {de:'', en:''};
+          settings.measurements.labels[row.key].de = $(this).val();
+        })
+        .end()
+        .appendTo(grid);
+
+      $('<label>'+row.title+' (EN) <input type="text"></label>')
+        .find('input')
+        .val((labels[row.key] && labels[row.key].en) || '')
+        .on('input', function(){
+          settings.measurements.labels[row.key] = settings.measurements.labels[row.key] || {de:'', en:''};
+          settings.measurements.labels[row.key].en = $(this).val();
+        })
+        .end()
+        .appendTo(grid);
+    });
+
     return card;
   }
 
@@ -276,6 +387,12 @@
   function render(){
     normalizeSettings();
     app.empty();
+    app.append(renderDesignSection());
+    app.append(renderMeasurementsSection());
+    if($.fn.wpColorPicker){
+      app.find('.schmitke-color').wpColorPicker();
+    }
+
     const list = $('<div class="schmitke-v2-element-list"></div>');
     settings.elements.sort((a,b)=> (a.order||0)-(b.order||0));
     settings.elements.forEach((el, idx)=>{

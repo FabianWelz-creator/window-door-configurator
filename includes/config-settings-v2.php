@@ -6,6 +6,8 @@ if (!defined('ABSPATH')) exit;
  *
  * Stored under the option key {@see self::OPTION_KEY} with a single array
  * payload:
+ * - design: shared color/typography tokens
+ * - measurements: labels/placeholders for measurement fields
  * - elements: ordered list of element metadata
  * - options_by_element: map element_key => option list
  * - rules: conditional logic
@@ -64,6 +66,8 @@ class Schmitke_Configurator_Settings_V2 {
         }
 
         return [
+            'design' => self::sanitize_design($legacyData['design'] ?? [], $defaults['design']),
+            'measurements' => self::sanitize_measurements($legacyData['measurements'] ?? [], $defaults['measurements']),
             'elements' => $elements,
             'options_by_element' => $optionsByElement,
             'rules' => $rules,
@@ -163,7 +167,12 @@ class Schmitke_Configurator_Settings_V2 {
         $rules = self::sanitize_rules($source['rules'] ?? [], $defaults['rules']);
         $globalUi = self::sanitize_global_ui($source['global_ui'] ?? [], $defaults['global_ui']);
 
+        $design = self::sanitize_design($source['design'] ?? [], $defaults['design']);
+        $measurements = self::sanitize_measurements($source['measurements'] ?? [], $defaults['measurements']);
+
         return [
+            'design' => $design,
+            'measurements' => $measurements,
             'elements' => $elements,
             'options_by_element' => $optionsByElement,
             'rules' => $rules,
@@ -195,8 +204,48 @@ class Schmitke_Configurator_Settings_V2 {
         ];
     }
 
+    private static function sanitize_design($settings, $defaults) {
+        $src = is_array($settings) ? $settings : [];
+        return [
+            'primaryColor' => sanitize_hex_color($src['primaryColor'] ?? '') ?: ($defaults['primaryColor'] ?? '#111111'),
+            'accentColor' => sanitize_hex_color($src['accentColor'] ?? '') ?: ($defaults['accentColor'] ?? '#f2f2f2'),
+            'textColor' => sanitize_hex_color($src['textColor'] ?? '') ?: ($defaults['textColor'] ?? '#111111'),
+            'borderColor' => sanitize_hex_color($src['borderColor'] ?? '') ?: ($defaults['borderColor'] ?? '#e7e7e7'),
+            'fontFamily' => sanitize_text_field($src['fontFamily'] ?? ($defaults['fontFamily'] ?? '')),
+            'buttonRadius' => max(0, intval($src['buttonRadius'] ?? ($defaults['buttonRadius'] ?? 0))),
+            'cardRadius' => max(0, intval($src['cardRadius'] ?? ($defaults['cardRadius'] ?? 0))),
+        ];
+    }
+
+    private static function sanitize_measurements($settings, $defaults) {
+        $src = is_array($settings) ? $settings : [];
+        $labels = is_array($src['labels'] ?? null) ? $src['labels'] : [];
+
+        $sanitizeLabelSet = function($key, $fallback) use ($labels) {
+            $val = is_array($labels[$key] ?? null) ? $labels[$key] : [];
+            return [
+                'de' => sanitize_text_field($val['de'] ?? ($fallback['de'] ?? '')),
+                'en' => sanitize_text_field($val['en'] ?? ($fallback['en'] ?? '')),
+            ];
+        };
+
+        $defaultLabels = $defaults['labels'] ?? [];
+
+        return [
+            'labels' => [
+                'width' => $sanitizeLabelSet('width', $defaultLabels['width'] ?? []),
+                'height' => $sanitizeLabelSet('height', $defaultLabels['height'] ?? []),
+                'quantity' => $sanitizeLabelSet('quantity', $defaultLabels['quantity'] ?? []),
+                'note' => $sanitizeLabelSet('note', $defaultLabels['note'] ?? []),
+                'upload' => $sanitizeLabelSet('upload', $defaultLabels['upload'] ?? []),
+            ],
+        ];
+    }
+
     public static function default_settings() {
         return [
+            'design' => self::default_design(),
+            'measurements' => self::default_measurements(),
             'elements' => self::seed_elements(),
             'options_by_element' => self::seed_options(),
             'rules' => [],
@@ -204,6 +253,30 @@ class Schmitke_Configurator_Settings_V2 {
                 'sticky_summary_enabled' => true,
                 'accordion_enabled' => true,
                 'locale_mode' => 'wp_locale',
+            ],
+        ];
+    }
+
+    private static function default_design() {
+        return [
+            'primaryColor' => '#111111',
+            'accentColor' => '#f2f2f2',
+            'textColor' => '#111111',
+            'borderColor' => '#e7e7e7',
+            'fontFamily' => 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
+            'buttonRadius' => 10,
+            'cardRadius' => 14,
+        ];
+    }
+
+    private static function default_measurements() {
+        return [
+            'labels' => [
+                'width' => ['de' => 'Breite (mm)', 'en' => 'Width (mm)'],
+                'height' => ['de' => 'Höhe (mm)', 'en' => 'Height (mm)'],
+                'quantity' => ['de' => 'Anzahl', 'en' => 'Quantity'],
+                'note' => ['de' => 'Notiz', 'en' => 'Note'],
+                'upload' => ['de' => 'Upload', 'en' => 'Upload'],
             ],
         ];
     }
