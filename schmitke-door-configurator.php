@@ -1065,40 +1065,185 @@ class Schmitke_Windows_Configurator {
         return $clean;
     }
 
-    private function build_pdf_document(array $lines): string {
-        $escapedLines = array_map(function($line) {
-            $line = str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $line);
-            return $line;
-        }, $lines);
-
-        $content = "BT\n/F1 11 Tf\n72 770 Td\n";
-        foreach ($escapedLines as $line) {
-            $content .= "({$line}) Tj\n0 -14 Td\n";
+    private function get_locale_label($value, $fallback = ''): string {
+        if (!is_array($value)) {
+            return $value !== null ? (string) $value : $fallback;
         }
-        $content .= "ET";
+        $lang = (substr(get_locale(), 0, 2) === 'de') ? 'de' : 'en';
+        if (!empty($value[$lang])) return (string) $value[$lang];
+        if (!empty($value['de'])) return (string) $value['de'];
+        if (!empty($value['en'])) return (string) $value['en'];
+        $first = reset($value);
+        return $first !== false ? (string) $first : $fallback;
+    }
+
+    private function encode_pdf_text(string $text): string {
+        $encoded = @iconv('UTF-8', 'Windows-1252//TRANSLIT', $text);
+        if ($encoded === false) {
+            $encoded = $text;
+        }
+        return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $encoded);
+    }
+
+    private function decode_image_data_url(string $dataUrl): ?array {
+        if (!preg_match('/^data:(image\\/[^;]+);base64,(.+)$/', $dataUrl, $matches)) {
+            return null;
+        }
+        $mime = strtolower(trim($matches[1]));
+        $data = base64_decode($matches[2], true);
+        if ($data === false) return null;
+
+        if ($mime === 'image/jpeg') {
+            return ['mime' => $mime, 'data' => $data];
+        }
+
+        if (!function_exists('imagecreatefromstring')) {
+            return null;
+        }
+        $image = @imagecreatefromstring($data);
+        if (!$image) return null;
+
+        ob_start();
+        imagejpeg($image, null, 85);
+        $jpegData = ob_get_clean();
+        imagedestroy($image);
+        if (!$jpegData) return null;
+        return ['mime' => 'image/jpeg', 'data' => $jpegData];
+    }
+
+    private function build_pdf_document(array $blocks, array $images): string {
+        $pageWidth = 595;
+        $pageHeight = 842;
+        $margin = 72;
+        $lineHeight = 14;
+        $imageGap = 8;
+        $maxImageWidth = 420;
+        $maxImageHeight = 260;
+        $minImageWidth = 200;
+
+        $pages = [[]];
+        $pageIndex = 0;
+        $cursorY = $pageHeight - $margin;
+
+        $addPage = function() use (&$pages, &$pageIndex, &$cursorY, $pageHeight, $margin) {
+            $pages[] = [];
+            $pageIndex++;
+            $cursorY = $pageHeight - $margin;
+        };
+
+        $addTextLine = function($text, $x = null) use (&$pages, &$pageIndex, &$cursorY, $lineHeight, $margin, $addPage) {
+            if ($text === '') {
+                $cursorY -= $lineHeight;
+                return;
+            }
+            if ($cursorY - $lineHeight < $margin) {
+                $addPage();
+            }
+            $xPos = $x === null ? $margin : $x;
+            $pages[$pageIndex][] = "BT /F1 11 Tf {$xPos} {$cursorY} Td ({$text}) Tj ET";
+            $cursorY -= $lineHeight;
+        };
+
+        foreach ($blocks as $block) {
+            if ($block['type'] === 'text') {
+                $text = $this->encode_pdf_text($block['text'] ?? '');
+                $addTextLine($text);
+            } elseif ($block['type'] === 'image') {
+                $imageName = $block['image_name'] ?? '';
+                $width = $block['width'] ?? 0;
+                $height = $block['height'] ?? 0;
+                if (!$imageName || $width <= 0 || $height <= 0) {
+                    continue;
+                }
+                $scale = min($maxImageWidth / $width, $maxImageHeight / $height);
+                if ($scale > 1) {
+                    $scale = min($scale, 1.5);
+                }
+                if ($width < $minImageWidth) {
+                    $scale = max($scale, min($minImageWidth / $width, $maxImageWidth / $width, $maxImageHeight / $height, 1.5));
+                }
+                $displayWidth = $width * $scale;
+                $displayHeight = $height * $scale;
+
+                $captionLines = $block['caption'] ?? [];
+                $captionHeight = count($captionLines) * $lineHeight;
+                $blockHeight = $displayHeight + $captionHeight + $imageGap;
+                if ($cursorY - $blockHeight < $margin) {
+                    $addPage();
+                }
+                $x = $margin;
+                $y = $cursorY - $displayHeight;
+                $pages[$pageIndex][] = "q {$displayWidth} 0 0 {$displayHeight} {$x} {$y} cm /{$imageName} Do Q";
+                $cursorY = $y - $imageGap;
+                foreach ($captionLines as $captionLine) {
+                    $addTextLine($this->encode_pdf_text($captionLine), $margin + 12);
+                }
+            }
+        }
+
+        $pageCount = count($pages);
+        $imageCount = count($images);
+
+        $catalogObjNum = 1;
+        $pagesObjNum = 2;
+        $pageObjStart = 3;
+        $fontObjNum = $pageObjStart + $pageCount;
+        $imageObjStart = $fontObjNum + 1;
+        $contentObjStart = $imageObjStart + $imageCount;
 
         $objects = [];
-        $objects[] = "<< /Type /Catalog /Pages 2 0 R >>";
-        $objects[] = "<< /Type /Pages /Kids [3 0 R] /Count 1 >>";
-        $objects[] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>";
-        $objects[] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
-        $objects[] = "<< /Length " . strlen($content) . " >>\nstream\n{$content}\nendstream";
+        $objects[$catalogObjNum] = "<< /Type /Catalog /Pages {$pagesObjNum} 0 R >>";
+        $kids = [];
+        for ($i = 0; $i < $pageCount; $i++) {
+            $kids[] = ($pageObjStart + $i) . " 0 R";
+        }
+        $objects[$pagesObjNum] = "<< /Type /Pages /Kids [" . implode(' ', $kids) . "] /Count {$pageCount} >>";
 
+        $objects[$fontObjNum] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
+
+        foreach ($images as $idx => $image) {
+            $objNum = $imageObjStart + $idx;
+            $objects[$objNum] = "<< /Type /XObject /Subtype /Image /Width {$image['width']} /Height {$image['height']} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " . strlen($image['data']) . " >>\nstream\n{$image['data']}\nendstream";
+        }
+
+        for ($i = 0; $i < $pageCount; $i++) {
+            $content = implode("\n", $pages[$i]);
+            $contentObjNum = $contentObjStart + $i;
+            $objects[$contentObjNum] = "<< /Length " . strlen($content) . " >>\nstream\n{$content}\nendstream";
+        }
+
+        $resource = "<< /Font << /F1 {$fontObjNum} 0 R >>";
+        if ($imageCount) {
+            $xObjects = [];
+            for ($i = 0; $i < $imageCount; $i++) {
+                $xObjects[] = "/Im" . ($i + 1) . " " . ($imageObjStart + $i) . " 0 R";
+            }
+            $resource .= " /XObject << " . implode(' ', $xObjects) . " >>";
+        }
+        $resource .= " >>";
+
+        for ($i = 0; $i < $pageCount; $i++) {
+            $pageObjNum = $pageObjStart + $i;
+            $contentObjNum = $contentObjStart + $i;
+            $objects[$pageObjNum] = "<< /Type /Page /Parent {$pagesObjNum} 0 R /MediaBox [0 0 {$pageWidth} {$pageHeight}] /Resources {$resource} /Contents {$contentObjNum} 0 R >>";
+        }
+
+        ksort($objects);
         $pdf = "%PDF-1.4\n";
         $offsets = [];
-        foreach ($objects as $i => $obj) {
-            $offsets[] = strlen($pdf);
-            $objIndex = $i + 1;
+        foreach ($objects as $objIndex => $obj) {
+            $offsets[$objIndex] = strlen($pdf);
             $pdf .= "{$objIndex} 0 obj\n{$obj}\nendobj\n";
         }
 
         $xref = strlen($pdf);
         $pdf .= "xref\n0 " . (count($objects) + 1) . "\n";
         $pdf .= "0000000000 65535 f \n";
-        foreach ($offsets as $offset) {
+        for ($i = 1; $i <= count($objects); $i++) {
+            $offset = $offsets[$i] ?? 0;
             $pdf .= sprintf("%010d 00000 n \n", $offset);
         }
-        $pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root 1 0 R >>\n";
+        $pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root {$catalogObjNum} 0 R >>\n";
         $pdf .= "startxref\n{$xref}\n%%EOF";
 
         return $pdf;
@@ -1135,24 +1280,27 @@ class Schmitke_Windows_Configurator {
                         $summary[] = sanitize_text_field($line);
                     }
                 }
-                if ($name !== '' || !empty($summary)) {
+                $uploads = [];
+                if (!empty($pos['uploads']) && is_array($pos['uploads'])) {
+                    foreach ($pos['uploads'] as $upload) {
+                        if (!is_array($upload)) continue;
+                        $uploads[] = [
+                            'label' => sanitize_text_field($upload['label'] ?? ''),
+                            'filename' => sanitize_text_field($upload['filename'] ?? ''),
+                            'note' => sanitize_textarea_field($upload['note'] ?? ''),
+                            'data' => sanitize_text_field($upload['data'] ?? ''),
+                        ];
+                    }
+                }
+
+                if ($name !== '' || !empty($summary) || !empty($uploads)) {
                     $positions[] = [
                         'name' => $name,
                         'summary' => $summary,
+                        'uploads' => $uploads,
                     ];
                 }
             }
-        }
-
-        $current = [];
-        if (!empty($payload['current']) && is_array($payload['current'])) {
-            foreach ($payload['current'] as $line) {
-                $current[] = sanitize_text_field($line);
-            }
-        }
-
-        if (empty($positions) && empty($current)) {
-            wp_send_json_error(['message' => 'Keine Auswahl übermittelt.'], 422);
         }
 
         $data = $this->get_data();
@@ -1163,46 +1311,76 @@ class Schmitke_Windows_Configurator {
             wp_send_json_error(['message' => 'Empfängeradresse fehlt.'], 500);
         }
 
-        $lines = [
-            'Fenster-Konfigurator Angebotsanfrage',
-            'Datum: ' . date_i18n('d.m.Y H:i'),
-            '',
-            'Kontakt',
-            'Name: ' . $contactName,
-            'E-Mail: ' . $contactEmail,
+        $missingPositionsMessage = $this->get_locale_label(
+            $v2Settings['messages']['missing_positions'] ?? [],
+            'Bitte mindestens eine Position hinzufügen.'
+        );
+
+        if (empty($positions)) {
+            wp_send_json_error(['message' => $missingPositionsMessage], 422);
+        }
+
+        $blocks = [
+            ['type' => 'text', 'text' => 'Fenster-Konfigurator Angebotsanfrage'],
+            ['type' => 'text', 'text' => 'Datum: ' . date_i18n('d.m.Y H:i')],
+            ['type' => 'text', 'text' => ''],
+            ['type' => 'text', 'text' => 'Kontakt'],
+            ['type' => 'text', 'text' => 'Name: ' . $contactName],
+            ['type' => 'text', 'text' => 'E-Mail: ' . $contactEmail],
         ];
-        if ($contactPhone) $lines[] = 'Telefon: ' . $contactPhone;
-        if ($contactAddress) $lines[] = 'Adresse: ' . $contactAddress;
+        if ($contactPhone) $blocks[] = ['type' => 'text', 'text' => 'Telefon: ' . $contactPhone];
+        if ($contactAddress) $blocks[] = ['type' => 'text', 'text' => 'Adresse: ' . $contactAddress];
         if ($contactMessage) {
-            $lines[] = '';
-            $lines[] = 'Nachricht:';
-            $lines[] = $contactMessage;
+            $blocks[] = ['type' => 'text', 'text' => ''];
+            $blocks[] = ['type' => 'text', 'text' => 'Nachricht:'];
+            $blocks[] = ['type' => 'text', 'text' => $contactMessage];
         }
 
-        if (!empty($positions)) {
-            $lines[] = '';
-            $lines[] = 'Gespeicherte Positionen:';
-            foreach ($positions as $index => $pos) {
-                $title = 'Position ' . ($index + 1);
-                if (!empty($pos['name'])) {
-                    $title .= ' - ' . $pos['name'];
+        $images = [];
+        $blocks[] = ['type' => 'text', 'text' => ''];
+        $blocks[] = ['type' => 'text', 'text' => 'Gespeicherte Positionen:'];
+        foreach ($positions as $index => $pos) {
+            $title = 'Position ' . ($index + 1);
+            if (!empty($pos['name'])) {
+                $title .= ' - ' . $pos['name'];
+            }
+            $blocks[] = ['type' => 'text', 'text' => $title];
+            foreach ($pos['summary'] as $line) {
+                $blocks[] = ['type' => 'text', 'text' => '  - ' . $line];
+            }
+            foreach ($pos['uploads'] as $upload) {
+                if (empty($upload['data'])) continue;
+                $decoded = $this->decode_image_data_url($upload['data']);
+                if (!$decoded) continue;
+                $size = @getimagesizefromstring($decoded['data']);
+                if (!$size || empty($size[0]) || empty($size[1])) continue;
+                $images[] = [
+                    'width' => $size[0],
+                    'height' => $size[1],
+                    'data' => $decoded['data'],
+                ];
+                $imageName = 'Im' . count($images);
+                if (!empty($upload['label'])) {
+                    $blocks[] = ['type' => 'text', 'text' => '  Foto: ' . $upload['label']];
                 }
-                $lines[] = $title;
-                foreach ($pos['summary'] as $line) {
-                    $lines[] = '  - ' . $line;
+                $caption = [];
+                if (!empty($upload['note'])) {
+                    $caption[] = 'Notiz: ' . $upload['note'];
                 }
+                if (!empty($upload['filename'])) {
+                    $caption[] = 'Datei: ' . $upload['filename'];
+                }
+                $blocks[] = [
+                    'type' => 'image',
+                    'image_name' => $imageName,
+                    'width' => $size[0],
+                    'height' => $size[1],
+                    'caption' => $caption,
+                ];
             }
         }
 
-        if (!empty($current)) {
-            $lines[] = '';
-            $lines[] = 'Aktuelle Auswahl:';
-            foreach ($current as $line) {
-                $lines[] = '  - ' . $line;
-            }
-        }
-
-        $pdfContent = $this->build_pdf_document($lines);
+        $pdfContent = $this->build_pdf_document($blocks, $images);
         $tmpFile = wp_tempnam('schmitke-windows-offer');
         if (!$tmpFile) {
             wp_send_json_error(['message' => 'PDF konnte nicht erstellt werden.'], 500);

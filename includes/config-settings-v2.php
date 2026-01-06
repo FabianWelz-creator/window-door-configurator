@@ -170,12 +170,14 @@ class Schmitke_Configurator_Settings_V2 {
 
         $design = self::sanitize_design($source['design'] ?? [], $defaults['design']);
         $measurements = self::sanitize_measurements($source['measurements'] ?? [], $defaults['measurements']);
+        $messages = self::sanitize_messages($source['messages'] ?? [], $defaults['messages']);
         $emailTo = sanitize_email($source['email_to'] ?? ($defaults['email_to'] ?? ''));
 
         return [
             'email_to' => $emailTo,
             'design' => $design,
             'measurements' => $measurements,
+            'messages' => $messages,
             'elements' => $elements,
             'options_by_element' => $optionsByElement,
             'rules' => $rules,
@@ -245,11 +247,28 @@ class Schmitke_Configurator_Settings_V2 {
         ];
     }
 
+    private static function sanitize_messages($settings, $defaults) {
+        $src = is_array($settings) ? $settings : [];
+
+        $sanitizeLabelSet = function($key, $fallback) use ($src) {
+            $val = is_array($src[$key] ?? null) ? $src[$key] : [];
+            return [
+                'de' => sanitize_text_field($val['de'] ?? ($fallback['de'] ?? '')),
+                'en' => sanitize_text_field($val['en'] ?? ($fallback['en'] ?? '')),
+            ];
+        };
+
+        return [
+            'missing_positions' => $sanitizeLabelSet('missing_positions', $defaults['missing_positions'] ?? []),
+        ];
+    }
+
     public static function default_settings() {
         return [
             'email_to' => '',
             'design' => self::default_design(),
             'measurements' => self::default_measurements(),
+            'messages' => self::default_messages(),
             'elements' => self::seed_elements(),
             'options_by_element' => self::seed_options(),
             'rules' => [],
@@ -281,6 +300,15 @@ class Schmitke_Configurator_Settings_V2 {
                 'quantity' => ['de' => 'Anzahl', 'en' => 'Quantity'],
                 'note' => ['de' => 'Notiz', 'en' => 'Note'],
                 'upload' => ['de' => 'Upload', 'en' => 'Upload'],
+            ],
+        ];
+    }
+
+    private static function default_messages() {
+        return [
+            'missing_positions' => [
+                'de' => 'Bitte mindestens eine Position hinzufügen.',
+                'en' => 'Please add at least one position.',
             ],
         ];
     }
