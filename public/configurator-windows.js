@@ -166,6 +166,14 @@
 
     function sanitizeSelections(ruleEffects){
       elements.forEach(el=>{
+        const visibleOverride = ruleEffects.visibility.has(el.element_key) ? ruleEffects.visibility.get(el.element_key) : undefined;
+        const isVisible = ruleEffects.hidden.has(el.element_key)
+          ? false
+          : (visibleOverride !== undefined ? visibleOverride : (el.visible_default !== false));
+        if(!isVisible){
+          delete state.selections[el.element_key];
+          return;
+        }
         const allowed = ruleEffects.filters.get(el.element_key);
         if(!allowed) return;
         const sel = state.selections[el.element_key];

@@ -66,6 +66,7 @@ class Schmitke_Configurator_Settings_V2 {
         }
 
         return [
+            'email_to' => sanitize_email($legacyData['email_to'] ?? ''),
             'design' => self::sanitize_design($legacyData['design'] ?? [], $defaults['design']),
             'measurements' => self::sanitize_measurements($legacyData['measurements'] ?? [], $defaults['measurements']),
             'elements' => $elements,
@@ -169,8 +170,10 @@ class Schmitke_Configurator_Settings_V2 {
 
         $design = self::sanitize_design($source['design'] ?? [], $defaults['design']);
         $measurements = self::sanitize_measurements($source['measurements'] ?? [], $defaults['measurements']);
+        $emailTo = sanitize_email($source['email_to'] ?? ($defaults['email_to'] ?? ''));
 
         return [
+            'email_to' => $emailTo,
             'design' => $design,
             'measurements' => $measurements,
             'elements' => $elements,
@@ -244,6 +247,7 @@ class Schmitke_Configurator_Settings_V2 {
 
     public static function default_settings() {
         return [
+            'email_to' => '',
             'design' => self::default_design(),
             'measurements' => self::default_measurements(),
             'elements' => self::seed_elements(),
