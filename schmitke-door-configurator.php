@@ -1156,7 +1156,9 @@ class Schmitke_Windows_Configurator {
         }
 
         $data = $this->get_data();
-        $to = sanitize_email($data['email_to'] ?? '');
+        $legacyTo = sanitize_email($data['email_to'] ?? '');
+        $v2Settings = Schmitke_Configurator_Settings_V2::get_settings();
+        $to = sanitize_email($v2Settings['email_to'] ?? '') ?: $legacyTo;
         if (empty($to)) {
             wp_send_json_error(['message' => 'Empfängeradresse fehlt.'], 500);
         }

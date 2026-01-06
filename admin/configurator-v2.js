@@ -34,6 +34,7 @@
   }
 
   const defaults = {
+    email_to: '',
     design: defaultDesign(),
     measurements: defaultMeasurements(),
     elements: [],
@@ -309,6 +310,24 @@
     return card;
   }
 
+  function renderEmailSection(){
+    const card = $('<div class="schmitke-card open"></div>');
+    const head = $('<div class="schmitke-model-head"></div>').appendTo(card);
+    $('<strong class="schmitke-model-title">Empfänger E-Mail</strong>').appendTo(head);
+    $('<div class="schmitke-model-actions"></div>').appendTo(head).append('<span class="description">Zieladresse für Angebotsanfragen</span>');
+
+    const body = $('<div class="schmitke-model-body"></div>').appendTo(card);
+    const grid = $('<div class="schmitke-model-grid"></div>').appendTo(body);
+    $('<label>E-Mail <input type="email"></label>')
+      .find('input')
+      .val(settings.email_to || '')
+      .on('input', function(){ settings.email_to = $(this).val(); })
+      .end()
+      .appendTo(grid);
+
+    return card;
+  }
+
   function renderMeasurementsSection(){
     const card = $('<div class="schmitke-card open"></div>');
     const head = $('<div class="schmitke-model-head"></div>').appendTo(card);
@@ -476,6 +495,7 @@
     captureElementOpenState();
     normalizeSettings();
     app.empty();
+    app.append(renderEmailSection());
     app.append(renderDesignSection());
     app.append(renderMeasurementsSection());
     if($.fn.wpColorPicker){
