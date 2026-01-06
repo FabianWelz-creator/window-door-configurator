@@ -61,6 +61,7 @@
       if(lbl) return getLabel(lbl);
       return fallback || key;
     };
+    const missingPositionsMessage = getLabel(settings?.messages?.missing_positions) || 'Bitte mindestens eine Position hinzufügen.';
     const getSectionOpen = (key, idx) => {
       if(!accordionEnabled) return true;
       if(elementOpenState.has(key)) return elementOpenState.get(key);
@@ -267,8 +268,18 @@
           input.accept = 'image/*';
           input.addEventListener('change', function(){
             const file = input.files && input.files[0];
-            state.selections[el.element_key] = { filename: file ? file.name : '' };
-            renderSummary();
+            const current = state.selections[el.element_key] || {};
+            if(!file){
+              state.selections[el.element_key] = Object.assign({}, current, { filename: '', dataUrl: '' });
+              renderSummary();
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(){
+              state.selections[el.element_key] = Object.assign({}, current, { filename: file.name, dataUrl: reader.result || '' });
+              renderSummary();
+            };
+            reader.readAsDataURL(file);
           });
           label.appendChild(input);
           const note = document.createElement('textarea');
@@ -474,9 +485,20 @@
           return;
         }
         const name = (state.positionDraft || '').trim() || `Position ${state.positions.length + 1}`;
+        const uploads = elements.filter(el=>el.type === 'upload').map(function(el){
+          const val = state.selections[el.element_key] || {};
+          if(!val.dataUrl) return null;
+          return {
+            label: elementLabels[el.element_key] || el.element_key,
+            filename: val.filename || '',
+            note: val.note || '',
+            data: val.dataUrl || ''
+          };
+        }).filter(Boolean);
         state.positions.push({
           name,
-          summary: items.map(entry=>`${entry.label}: ${entry.value}`)
+          summary: items.map(entry=>`${entry.label}: ${entry.value}`),
+          uploads
         });
         state.positionDraft = '';
         saveOfferState();
@@ -570,8 +592,8 @@
           alert('Bitte Name und E-Mail angeben.');
           return;
         }
-        if(!summaryItems.length && !state.positions.length){
-          alert('Bitte mindestens eine Position auswählen oder hinzufügen.');
+        if(!state.positions.length){
+          alert(missingPositionsMessage);
           return;
         }
         requestBtn.disabled = true;
@@ -579,8 +601,7 @@
         try{
           const payload = {
             contact: state.contact,
-            positions: state.positions,
-            current: summaryItems.map(entry=>`${entry.label}: ${entry.value}`)
+            positions: state.positions
           };
           const formData = new FormData();
           formData.append('action', 'schmitke_windows_request_quote');

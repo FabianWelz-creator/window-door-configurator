@@ -37,6 +37,9 @@
     email_to: '',
     design: defaultDesign(),
     measurements: defaultMeasurements(),
+    messages: {
+      missing_positions: {de:'Bitte mindestens eine Position hinzufügen.', en:'Please add at least one position.'}
+    },
     elements: [],
     options_by_element: {},
     rules: [],
@@ -65,6 +68,7 @@
   function normalizeSettings(){
     settings.design = $.extend(true, {}, defaultDesign(), settings.design || {});
     settings.measurements = $.extend(true, {}, defaultMeasurements(), settings.measurements || {});
+    settings.messages = $.extend(true, {}, defaults.messages, settings.messages || {});
     const incomingOptions = settings.options_by_element || {};
     const mappedOptions = {};
     settings.elements = (settings.elements || []).map(function(el, idx){
@@ -370,6 +374,37 @@
     return card;
   }
 
+  function renderMessagesSection(){
+    const card = $('<div class="schmitke-card open"></div>');
+    const head = $('<div class="schmitke-model-head"></div>').appendTo(card);
+    $('<strong class="schmitke-model-title">Fehlermeldungen</strong>').appendTo(head);
+    $('<div class="schmitke-model-actions"></div>').appendTo(head).append('<span class="description">Texte für Pflicht- oder Hinweisfelder</span>');
+
+    const body = $('<div class="schmitke-model-body"></div>').appendTo(card);
+    const grid = $('<div class="schmitke-model-grid"></div>').appendTo(body);
+    $('<label>Keine Positionen (DE) <input type="text"></label>')
+      .find('input')
+      .val((settings.messages.missing_positions && settings.messages.missing_positions.de) || '')
+      .on('input', function(){
+        settings.messages.missing_positions = settings.messages.missing_positions || {de:'', en:''};
+        settings.messages.missing_positions.de = $(this).val();
+      })
+      .end()
+      .appendTo(grid);
+
+    $('<label>Keine Positionen (EN) <input type="text"></label>')
+      .find('input')
+      .val((settings.messages.missing_positions && settings.messages.missing_positions.en) || '')
+      .on('input', function(){
+        settings.messages.missing_positions = settings.messages.missing_positions || {de:'', en:''};
+        settings.messages.missing_positions.en = $(this).val();
+      })
+      .end()
+      .appendTo(grid);
+
+    return card;
+  }
+
   function addToggle(container, key, obj, label){
     const wrapper=$('<label class="schmitke-toggle-row"></label>');
     const checkbox=$('<input type="checkbox">').prop('checked', !!obj[key]).on('change', function(){ obj[key]=!!$(this).is(':checked'); });
@@ -498,6 +533,7 @@
     app.append(renderEmailSection());
     app.append(renderDesignSection());
     app.append(renderMeasurementsSection());
+    app.append(renderMessagesSection());
     if($.fn.wpColorPicker){
       app.find('.schmitke-color').wpColorPicker();
     }
