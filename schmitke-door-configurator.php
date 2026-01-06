@@ -1262,6 +1262,8 @@ class Schmitke_Windows_Configurator {
                 $height = max(0, intval($block['height'] ?? $lineHeight));
                 $ensureSpace($height);
                 $cursorY -= $height;
+            } elseif ($block['type'] === 'page_break') {
+                $addPage();
             } elseif ($block['type'] === 'image') {
                 $imageName = $block['image_name'] ?? '';
                 $width = $block['width'] ?? 0;
@@ -1457,8 +1459,13 @@ class Schmitke_Windows_Configurator {
 
         $images = [];
         $blocks[] = ['type' => 'spacer', 'height' => 14];
+        $blocks[] = ['type' => 'page_break'];
         $blocks[] = ['type' => 'section', 'text' => 'Gespeicherte Positionen'];
         foreach ($positions as $index => $pos) {
+            if ($index > 0) {
+                $blocks[] = ['type' => 'page_break'];
+                $blocks[] = ['type' => 'section', 'text' => 'Gespeicherte Positionen'];
+            }
             $title = 'Position ' . ($index + 1);
             if (!empty($pos['name'])) {
                 $title .= ' - ' . $pos['name'];
