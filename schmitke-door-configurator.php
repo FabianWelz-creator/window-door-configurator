@@ -1207,7 +1207,17 @@ class Schmitke_Windows_Configurator {
         if (!$tmpFile) {
             wp_send_json_error(['message' => 'PDF konnte nicht erstellt werden.'], 500);
         }
-        file_put_contents($tmpFile, $pdfContent);
+        $bytesWritten = file_put_contents($tmpFile, $pdfContent);
+        if ($bytesWritten === false) {
+            @unlink($tmpFile);
+            wp_send_json_error(['message' => 'PDF konnte nicht erstellt werden.'], 500);
+        }
+
+        $pdfFile = $tmpFile . '.pdf';
+        $attachmentPath = $tmpFile;
+        if (@rename($tmpFile, $pdfFile)) {
+            $attachmentPath = $pdfFile;
+        }
 
         $subject = 'Angebotsanfrage Fenster-Konfigurator';
         $bodyLines = [
@@ -1227,8 +1237,8 @@ class Schmitke_Windows_Configurator {
         $bodyLines[] = '';
         $bodyLines[] = 'Die PDF-Zusammenfassung ist angehängt.';
 
-        $sent = wp_mail($to, $subject, implode("\n", $bodyLines), [], [$tmpFile]);
-        @unlink($tmpFile);
+        $sent = wp_mail($to, $subject, implode("\n", $bodyLines), [], [$attachmentPath]);
+        @unlink($attachmentPath);
 
         if (!$sent) {
             wp_send_json_error(['message' => 'E-Mail konnte nicht versendet werden.'], 500);
