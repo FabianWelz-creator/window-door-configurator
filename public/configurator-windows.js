@@ -33,8 +33,26 @@
     elements.sort((a,b)=> (a.order||0)-(b.order||0));
     const optionsMap = settings.options_by_element || {};
     const elementLabels = {};
-    elements.forEach(el=>{ elementLabels[el.element_key] = getLabel(el.labels); });
-    const state = { selections:{} };
+    const elementTypes = {};
+    const optionLabelMap = {};
+    elements.forEach(el=>{
+      elementLabels[el.element_key] = getLabel(el.labels);
+      elementTypes[el.element_key] = el.type || 'single';
+    });
+    Object.entries(optionsMap).forEach(([key, list])=>{
+      const map = new Map();
+      (list || []).forEach(opt=>{
+        map.set(opt.option_code, getLabel(opt.labels) || opt.option_code || '');
+      });
+      optionLabelMap[key] = map;
+    });
+    const STORAGE_KEY_V2 = 'schmitke_windows_offer_state_v2';
+    const state = {
+      selections:{},
+      positions:[],
+      contact:{name:'', email:'', phone:'', address:'', message:''},
+      positionDraft:''
+    };
     const accordionEnabled = settings?.global_ui?.accordion_enabled !== false;
     const elementOpenState = new Map();
     const measurementLabels = (settings.measurements && settings.measurements.labels) ? settings.measurements.labels : {};
@@ -291,10 +309,27 @@
             }
             const body = document.createElement('div');
             body.className = 'swc-option-text';
+            const titleRow = document.createElement('div');
+            titleRow.className = 'swc-option-title-row';
             const title = document.createElement('div');
             title.className = 'swc-option-title';
             title.textContent = getLabel(opt.labels);
-            body.appendChild(title);
+            titleRow.appendChild(title);
+            const infoText = getLabel(opt.info);
+            if(infoText){
+              const infoWrap = document.createElement('span');
+              infoWrap.className = 'swc-option-info';
+              infoWrap.setAttribute('aria-label', infoText);
+              infoWrap.textContent = 'i';
+              const tooltip = document.createElement('span');
+              tooltip.className = 'swc-option-tooltip';
+              tooltip.textContent = infoText;
+              infoWrap.appendChild(tooltip);
+              infoWrap.addEventListener('click', function(e){ e.stopPropagation(); });
+              infoWrap.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+              titleRow.appendChild(infoWrap);
+            }
+            body.appendChild(titleRow);
             tile.appendChild(body);
             tile.addEventListener('click', function(){
               if(isDisabled) return;
@@ -319,6 +354,64 @@
       state.requiredFlags = requiredFlags;
     }
 
+    function getOptionLabel(elementKey, code){
+      if(!code) return '';
+      const map = optionLabelMap[elementKey];
+      if(map && map.has(code)) return map.get(code);
+      return code;
+    }
+
+    function formatSelectionValue(elementKey, val){
+      if(Array.isArray(val)){
+        return val.map(code=>getOptionLabel(elementKey, code)).filter(Boolean).join(', ');
+      }
+      if(val && typeof val === 'object'){
+        const parts = [];
+        if(val.width) parts.push(getMeasurementLabel('width', 'B') + ' ' + val.width);
+        if(val.height) parts.push(getMeasurementLabel('height', 'H') + ' ' + val.height);
+        if(val.quantity) parts.push(getMeasurementLabel('quantity', 'Anz') + ' ' + val.quantity);
+        if(val.filename) parts.push(val.filename);
+        if(val.note) parts.push(val.note);
+        return parts.join(' ');
+      }
+      return getOptionLabel(elementKey, val) || '';
+    }
+
+    function getOrderedSummaryItems(selections){
+      const items = [];
+      elements.forEach(function(el){
+        const key = el.element_key;
+        if(!key) return;
+        const val = selections[key];
+        if(Array.isArray(val) && !val.length) return;
+        if(val === undefined || val === null || val === '') return;
+        const label = elementLabels[key] || key;
+        const formatted = formatSelectionValue(key, val);
+        if(formatted === '') return;
+        items.push({label, value: formatted});
+      });
+      return items;
+    }
+
+    function saveOfferState(){
+      try{
+        window.localStorage.setItem(STORAGE_KEY_V2, JSON.stringify({
+          positions: state.positions,
+          contact: state.contact
+        }));
+      }catch(e){}
+    }
+
+    function loadOfferState(){
+      try{
+        const raw = window.localStorage.getItem(STORAGE_KEY_V2);
+        if(!raw) return;
+        const parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.positions)) state.positions = parsed.positions;
+        if(parsed && parsed.contact) state.contact = Object.assign(state.contact, parsed.contact);
+      }catch(e){}
+    }
+
     function renderSummary(){
       summary.innerHTML = '';
       const title = document.createElement('h3');
@@ -327,24 +420,10 @@
       summary.appendChild(title);
       const list = document.createElement('ul');
       list.className = 'scc-summary-list';
-      Object.entries(state.selections).forEach(function([key, val]){
+      const summaryItems = getOrderedSummaryItems(state.selections);
+      summaryItems.forEach(function(itemData){
         const item = document.createElement('li');
-        const label = elementLabels[key] || key;
-        let text = label + ': ';
-        if(Array.isArray(val)){
-          text += val.join(', ');
-        } else if(val && typeof val === 'object'){
-          const parts = [];
-          if(val.width) parts.push(getMeasurementLabel('width', 'B') + ' ' + val.width);
-          if(val.height) parts.push(getMeasurementLabel('height', 'H') + ' ' + val.height);
-          if(val.quantity) parts.push(getMeasurementLabel('quantity', 'Anz') + ' ' + val.quantity);
-          if(val.filename) parts.push(val.filename);
-          if(val.note) parts.push(val.note);
-          text += parts.join(' ');
-        } else {
-          text += val || '';
-        }
-        item.textContent = text;
+        item.textContent = itemData.label + ': ' + itemData.value;
         list.appendChild(item);
       });
       if(!list.children.length){
@@ -354,8 +433,178 @@
       } else {
         summary.appendChild(list);
       }
+
+      const positionWrap = document.createElement('div');
+      positionWrap.className = 'scc-positions scc-positions-compact';
+      const positionHead = document.createElement('div');
+      positionHead.className = 'scc-positions-header';
+      const posTitle = document.createElement('h5');
+      posTitle.textContent = 'Positionen';
+      positionHead.appendChild(posTitle);
+      positionWrap.appendChild(positionHead);
+
+      const nameLabel = document.createElement('label');
+      nameLabel.textContent = 'Positionsname';
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = state.positionDraft || '';
+      nameInput.placeholder = 'z. B. Küche, EG links';
+      nameInput.addEventListener('input', function(){
+        state.positionDraft = nameInput.value;
+      });
+      nameLabel.appendChild(nameInput);
+      positionWrap.appendChild(nameLabel);
+
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'scc-btn primary';
+      addBtn.textContent = 'Position hinzufügen';
+      addBtn.addEventListener('click', function(){
+        const items = getOrderedSummaryItems(state.selections);
+        if(!items.length){
+          alert('Bitte zuerst eine Auswahl treffen.');
+          return;
+        }
+        const name = (state.positionDraft || '').trim() || `Position ${state.positions.length + 1}`;
+        state.positions.push({
+          name,
+          summary: items.map(entry=>`${entry.label}: ${entry.value}`)
+        });
+        state.positionDraft = '';
+        saveOfferState();
+        renderSummary();
+      });
+      positionWrap.appendChild(addBtn);
+
+      if(state.positions.length){
+        state.positions.forEach(function(pos, idx){
+          const details = document.createElement('details');
+          details.className = 'scc-position-summary';
+          const summaryLine = document.createElement('summary');
+          summaryLine.textContent = `Position ${idx + 1}: ${pos.name}`;
+          details.appendChild(summaryLine);
+          const posList = document.createElement('ul');
+          posList.className = 'scc-summary-list scc-summary-list-compact';
+          (pos.summary || []).forEach(function(line){
+            const li = document.createElement('li');
+            li.textContent = line;
+            posList.appendChild(li);
+          });
+          details.appendChild(posList);
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'scc-btn ghost danger scc-position-remove';
+          removeBtn.textContent = 'Entfernen';
+          removeBtn.addEventListener('click', function(event){
+            event.preventDefault();
+            state.positions.splice(idx, 1);
+            saveOfferState();
+            renderSummary();
+          });
+          details.appendChild(removeBtn);
+          positionWrap.appendChild(details);
+        });
+      } else {
+        const emptyPositions = document.createElement('p');
+        emptyPositions.className = 'scc-note';
+        emptyPositions.textContent = 'Noch keine Position gespeichert.';
+        positionWrap.appendChild(emptyPositions);
+      }
+
+      summary.appendChild(positionWrap);
+
+      const contactWrap = document.createElement('div');
+      contactWrap.className = 'scc-contact';
+      const contactTitle = document.createElement('h4');
+      contactTitle.textContent = 'Angebot anfragen';
+      contactWrap.appendChild(contactTitle);
+
+      const contactFields = [
+        {key:'name', label:'Name *', type:'text'},
+        {key:'email', label:'E-Mail *', type:'email'},
+        {key:'phone', label:'Telefon', type:'text'},
+        {key:'address', label:'Adresse', type:'text'}
+      ];
+      contactFields.forEach(function(field){
+        const label = document.createElement('label');
+        label.textContent = field.label;
+        const input = document.createElement('input');
+        input.type = field.type;
+        input.value = state.contact[field.key] || '';
+        input.addEventListener('input', function(){
+          state.contact[field.key] = input.value;
+          saveOfferState();
+        });
+        label.appendChild(input);
+        contactWrap.appendChild(label);
+      });
+
+      const messageLabel = document.createElement('label');
+      messageLabel.textContent = 'Nachricht';
+      const messageInput = document.createElement('textarea');
+      messageInput.rows = 3;
+      messageInput.value = state.contact.message || '';
+      messageInput.addEventListener('input', function(){
+        state.contact.message = messageInput.value;
+        saveOfferState();
+      });
+      messageLabel.appendChild(messageInput);
+      contactWrap.appendChild(messageLabel);
+
+      const requestBtn = document.createElement('button');
+      requestBtn.type = 'button';
+      requestBtn.className = 'scc-btn primary';
+      requestBtn.textContent = 'Angebot anfragen';
+      requestBtn.addEventListener('click', async function(){
+        const name = (state.contact.name || '').trim();
+        const email = (state.contact.email || '').trim();
+        if(!name || !email){
+          alert('Bitte Name und E-Mail angeben.');
+          return;
+        }
+        if(!summaryItems.length && !state.positions.length){
+          alert('Bitte mindestens eine Position auswählen oder hinzufügen.');
+          return;
+        }
+        requestBtn.disabled = true;
+        requestBtn.textContent = 'Sende...';
+        try{
+          const payload = {
+            contact: state.contact,
+            positions: state.positions,
+            current: summaryItems.map(entry=>`${entry.label}: ${entry.value}`)
+          };
+          const formData = new FormData();
+          formData.append('action', 'schmitke_windows_request_quote');
+          formData.append('nonce', DATA.ajax_nonce || '');
+          formData.append('payload', JSON.stringify(payload));
+          const response = await fetch(DATA.ajax_url, {method:'POST', body: formData});
+          const result = await response.json();
+          if(result && result.success){
+            alert('Vielen Dank! Ihre Anfrage wurde versendet.');
+            if(result.data && result.data.reset){
+              state.positions = [];
+              state.positionDraft = '';
+              saveOfferState();
+              renderSummary();
+            }
+          } else {
+            const message = (result && result.data && result.data.message) ? result.data.message : 'Anfrage konnte nicht versendet werden.';
+            alert(message);
+          }
+        }catch(e){
+          alert('Anfrage konnte nicht versendet werden.');
+        } finally {
+          requestBtn.disabled = false;
+          requestBtn.textContent = 'Angebot anfragen';
+        }
+      });
+
+      contactWrap.appendChild(requestBtn);
+      summary.appendChild(contactWrap);
     }
 
+    loadOfferState();
     renderElements();
     renderSummary();
   }

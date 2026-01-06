@@ -6,7 +6,7 @@ Ein moderner Türen- und Fenster-Konfigurator als WordPress-Plugin für Schmitke
 - **WordPress-Shortcodes**: `[schmitke_doors_configurator]` rendert den Türen-Konfigurator, `[schmitke_windows_configurator]` den Fenster-Konfigurator im Frontend.
 - **Admin-Panel**: Modelle, Größen, Kanten, Regeln und Design-Optionen werden zentral gepflegt.
 - **WordPress-Mediathek**: Bilder werden direkt aus der Mediendatenbank gewählt.
-- **Automatische E-Mail**: Zusammenfassung der Auswahl wird an die hinterlegte Zieladresse versendet.
+- **Automatische E-Mail**: Zusammenfassung der Auswahl wird an die hinterlegte Zieladresse versendet (inkl. PDF für Fenster-V2-Anfragen).
 - **JSON-basierte Konfiguration**: Alle Einstellungen werden als einzelner Optionswert gespeichert.
 - **Sanitizing & Validation**: Admin-Eingaben werden konsequent bereinigt, bevor sie gespeichert werden.
 
@@ -22,6 +22,9 @@ Ein moderner Türen- und Fenster-Konfigurator als WordPress-Plugin für Schmitke
    [schmitke_windows_configurator]
    ```
 2. Speichere die Seite. Der jeweilige Konfigurator lädt sein Styling (`public/configurator.css`) und Verhalten (`public/configurator.js` bzw. `public/configurator-windows.js`) automatisch nur, wenn der Shortcode vorhanden ist.
+3. Im Fenster-Konfigurator (V2) können mehrere Positionen gespeichert werden. Jede Position erhält einen Namen und erscheint als aufklappbare Zusammenfassung in der Summary-Box.
+4. Die Reihenfolge der Zusammenfassung entspricht immer der Reihenfolge der Elemente auf der Seite (nicht der Klick-Reihenfolge).
+5. Über **Angebot anfragen** werden die Kontaktdaten erfasst und eine PDF-Zusammenfassung per E-Mail an die konfigurierte Empfängeradresse gesendet.
 
 ## 🔧 Konfiguration im Admin-Bereich
 Die Einstellungen findest du unter **Einstellungen → Türen Konfigurator**.
@@ -58,7 +61,7 @@ Alle Eingaben werden sanitisiert; leere Listen fallen automatisch auf die mitgel
 ## 🗂️ V2 Settings (zentral)
 Für neue, frei editierbare Elemente/Optionen wird ein einziges Optionsobjekt `schmitke_configurator_settings_v2` genutzt. Es enthält:
 - `elements`: Metadaten zu allen Elementen (Key, Typ `single|multi|measurements|upload`, Labels DE/EN, Sichtbarkeit, Pflicht, Accordion-Default, Order, Search-Flag, Spaltenbreiten).
-- `options_by_element`: Optionslisten je Element (option_code, Labels DE/EN, Bild-ID, Default-Flag, Preis/Einheit, Disabled).
+- `options_by_element`: Optionslisten je Element (option_code, Labels DE/EN, Info-Texte DE/EN, Bild-ID, Default-Flag, Preis/Einheit, Disabled).
 - `rules`: Bedingungslogik (`when` mit AND/OR + `then` Aktionen: show/hide/filter/disable/set_required/unset_required).
 - `global_ui`: Sticky Summary + Accordion Toggle + Locale Mode.
 
@@ -68,6 +71,7 @@ Die Seed-Daten decken alle geforderten Elemente ab (Typ, Material, Verglasung, M
 - Zentrale Datenbeschaffung erfolgt über `get_option` mit Fallback auf `default_data()`.
 - `sanitize_data()` reinigt alle Admin-Eingaben, inklusive Listen, Media-URLs und Labels.
 - Frontend-Assets werden nur geladen, wenn der Shortcode im Inhalt vorkommt.
+- Angebotsanfragen im Fenster-Konfigurator V2 werden über `admin-ajax.php` verarbeitet (`schmitke_windows_request_quote`). Die PDF-Zusammenfassung wird serverseitig erstellt und mit `wp_mail` versendet.
 
 ## 📁 Projektstruktur
 - `schmitke-door-configurator.php` – Haupt-Plugin-Datei mit Shortcode, Settings-Page und Sanitizing.

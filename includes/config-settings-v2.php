@@ -476,6 +476,10 @@ class Schmitke_Configurator_Settings_V2 {
                     'de' => sanitize_text_field($item['de'] ?? ''),
                     'en' => sanitize_text_field($item['en'] ?? ''),
                 ],
+                'info' => [
+                    'de' => sanitize_text_field($item['info']['de'] ?? ''),
+                    'en' => sanitize_text_field($item['info']['en'] ?? ''),
+                ],
                 'image_id' => 0,
                 'is_default' => !empty($item['default']) || ($index === 0 && !array_key_exists('default', $item)),
                 'price' => null,
@@ -608,6 +612,10 @@ class Schmitke_Configurator_Settings_V2 {
                     'de' => sanitize_text_field($opt['labels']['de'] ?? ''),
                     'en' => sanitize_text_field($opt['labels']['en'] ?? ''),
                 ],
+                'info' => [
+                    'de' => sanitize_text_field($opt['info']['de'] ?? ''),
+                    'en' => sanitize_text_field($opt['info']['en'] ?? ''),
+                ],
                 'image_id' => intval($opt['image_id'] ?? 0),
                 'is_default' => isset($opt['is_default']) ? (bool)$opt['is_default'] : false,
                 'price' => isset($opt['price']) ? $opt['price'] : null,
@@ -699,4 +707,3 @@ class Schmitke_Configurator_Settings_V2 {
 }
 
 Schmitke_Configurator_Settings_V2::init();
-
