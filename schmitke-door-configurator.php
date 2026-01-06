@@ -1111,43 +1111,157 @@ class Schmitke_Windows_Configurator {
         return ['mime' => 'image/jpeg', 'data' => $jpegData];
     }
 
-    private function build_pdf_document(array $blocks, array $images): string {
+    private function pdf_hex_to_rgb(string $hex, array $fallback = [0, 0, 0]): array {
+        $hex = ltrim(trim($hex), '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+        if (strlen($hex) !== 6 || !ctype_xdigit($hex)) {
+            return $fallback;
+        }
+        return [
+            hexdec(substr($hex, 0, 2)) / 255,
+            hexdec(substr($hex, 2, 2)) / 255,
+            hexdec(substr($hex, 4, 2)) / 255,
+        ];
+    }
+
+    private function build_pdf_document(array $blocks, array $images, array $theme = [], array $meta = []): string {
         $pageWidth = 595;
         $pageHeight = 842;
-        $margin = 72;
+        $margin = 60;
         $lineHeight = 14;
         $imageGap = 8;
         $maxImageWidth = 420;
         $maxImageHeight = 260;
         $minImageWidth = 200;
+        $headerHeight = 64;
+        $headerPadding = 18;
+
+        $themeDefaults = [
+            'primary' => $this->pdf_hex_to_rgb($theme['primaryColor'] ?? '#111111'),
+            'accent' => $this->pdf_hex_to_rgb($theme['accentColor'] ?? '#f2f2f2'),
+            'text' => $this->pdf_hex_to_rgb($theme['textColor'] ?? '#111111'),
+            'border' => $this->pdf_hex_to_rgb($theme['borderColor'] ?? '#e7e7e7'),
+        ];
+
+        $mix_color = function(array $base, array $target, float $ratio): array {
+            return [
+                $base[0] + ($target[0] - $base[0]) * $ratio,
+                $base[1] + ($target[1] - $base[1]) * $ratio,
+                $base[2] + ($target[2] - $base[2]) * $ratio,
+            ];
+        };
+
+        $colors = [
+            'primary' => $themeDefaults['primary'],
+            'accent' => $themeDefaults['accent'],
+            'text' => $themeDefaults['text'],
+            'border' => $themeDefaults['border'],
+            'muted' => $mix_color($themeDefaults['text'], [1, 1, 1], 0.45),
+            'white' => [1, 1, 1],
+        ];
+
+        $color_string = function(array $color): string {
+            return sprintf('%.3f %.3f %.3f', $color[0], $color[1], $color[2]);
+        };
 
         $pages = [[]];
         $pageIndex = 0;
-        $cursorY = $pageHeight - $margin;
+        $cursorY = $pageHeight - $headerHeight - $headerPadding;
 
-        $addPage = function() use (&$pages, &$pageIndex, &$cursorY, $pageHeight, $margin) {
-            $pages[] = [];
-            $pageIndex++;
-            $cursorY = $pageHeight - $margin;
+        $addHeader = function() use (&$pages, &$pageIndex, $pageWidth, $pageHeight, $headerHeight, $headerPadding, $colors, $color_string, $meta, $margin) {
+            $headerY = $pageHeight - $headerHeight;
+            $pages[$pageIndex][] = "q " . $color_string($colors['primary']) . " rg 0 {$headerY} {$pageWidth} {$headerHeight} re f Q";
+
+            if (!empty($meta['title'])) {
+                $title = $this->encode_pdf_text((string) $meta['title']);
+                $titleY = $pageHeight - ($headerPadding + 16);
+                $pages[$pageIndex][] = "q " . $color_string($colors['white']) . " rg BT /F2 16 Tf {$margin} {$titleY} Td ({$title}) Tj ET Q";
+            }
+
+            if (!empty($meta['subtitle'])) {
+                $subtitle = $this->encode_pdf_text((string) $meta['subtitle']);
+                $subtitleY = $pageHeight - ($headerPadding + 34);
+                $pages[$pageIndex][] = "q " . $color_string($colors['white']) . " rg BT /F1 10 Tf {$margin} {$subtitleY} Td ({$subtitle}) Tj ET Q";
+            }
+
+            if (!empty($meta['date'])) {
+                $date = $this->encode_pdf_text((string) $meta['date']);
+                $fontSize = 9;
+                $estimatedWidth = strlen((string) $meta['date']) * $fontSize * 0.5;
+                $dateX = max($margin, $pageWidth - $margin - $estimatedWidth);
+                $dateY = $pageHeight - ($headerPadding + 16);
+                $pages[$pageIndex][] = "q " . $color_string($colors['white']) . " rg BT /F1 {$fontSize} Tf {$dateX} {$dateY} Td ({$date}) Tj ET Q";
+            }
         };
 
-        $addTextLine = function($text, $x = null) use (&$pages, &$pageIndex, &$cursorY, $lineHeight, $margin, $addPage) {
+        $addPage = function() use (&$pages, &$pageIndex, &$cursorY, $pageHeight, $headerHeight, $headerPadding, $addHeader) {
+            $pages[] = [];
+            $pageIndex++;
+            $addHeader();
+            $cursorY = $pageHeight - $headerHeight - $headerPadding;
+        };
+
+        $addTextLine = function($text, $x = null, $font = 'F1', $fontSize = 11, $color = null, $lineHeightOverride = null) use (&$pages, &$pageIndex, &$cursorY, $lineHeight, $margin, $addPage, $color_string, $colors) {
             if ($text === '') {
                 $cursorY -= $lineHeight;
                 return;
             }
-            if ($cursorY - $lineHeight < $margin) {
+            $lineHeightUse = $lineHeightOverride ?? $lineHeight;
+            if ($cursorY - $lineHeightUse < $margin) {
                 $addPage();
             }
             $xPos = $x === null ? $margin : $x;
-            $pages[$pageIndex][] = "BT /F1 11 Tf {$xPos} {$cursorY} Td ({$text}) Tj ET";
-            $cursorY -= $lineHeight;
+            $useColor = $color ?? $colors['text'];
+            $pages[$pageIndex][] = "q " . $color_string($useColor) . " rg BT /{$font} {$fontSize} Tf {$xPos} {$cursorY} Td ({$text}) Tj ET Q";
+            $cursorY -= $lineHeightUse;
         };
+
+        $ensureSpace = function($height) use (&$cursorY, $margin, $addPage) {
+            if ($cursorY - $height < $margin) {
+                $addPage();
+            }
+        };
+
+        $addDivider = function() use (&$pages, &$pageIndex, &$cursorY, $pageWidth, $margin, $color_string, $colors, $ensureSpace) {
+            $ensureSpace(6);
+            $lineY = $cursorY - 4;
+            $pages[$pageIndex][] = "q " . $color_string($colors['border']) . " RG 0.6 w {$margin} {$lineY} m " . ($pageWidth - $margin) . " {$lineY} l S Q";
+            $cursorY -= 6;
+        };
+
+        $addHeader();
+        $cursorY = $pageHeight - $headerHeight - $headerPadding;
 
         foreach ($blocks as $block) {
             if ($block['type'] === 'text') {
                 $text = $this->encode_pdf_text($block['text'] ?? '');
-                $addTextLine($text);
+                $rawText = $block['text'] ?? '';
+                $xPos = null;
+                if (is_string($rawText)) {
+                    $trimmed = ltrim($rawText);
+                    if (strpos($trimmed, '- ') === 0) {
+                        $bulletText = '• ' . substr($trimmed, 2);
+                        $text = $this->encode_pdf_text($bulletText);
+                        $xPos = $margin + 12;
+                    }
+                }
+                $addTextLine($text, $xPos, 'F1', 10.5, $colors['text'], 13);
+            } elseif ($block['type'] === 'section') {
+                $cursorY -= 6;
+                $text = $this->encode_pdf_text($block['text'] ?? '');
+                $addTextLine($text, null, 'F2', 12, $colors['primary'], 16);
+                $addDivider();
+            } elseif ($block['type'] === 'subsection') {
+                $cursorY -= 4;
+                $text = $this->encode_pdf_text($block['text'] ?? '');
+                $addTextLine($text, null, 'F2', 11, $colors['text'], 14);
+                $cursorY -= 2;
+            } elseif ($block['type'] === 'spacer') {
+                $height = max(0, intval($block['height'] ?? $lineHeight));
+                $ensureSpace($height);
+                $cursorY -= $height;
             } elseif ($block['type'] === 'image') {
                 $imageName = $block['image_name'] ?? '';
                 $width = $block['width'] ?? 0;
@@ -1176,8 +1290,9 @@ class Schmitke_Windows_Configurator {
                 $pages[$pageIndex][] = "q {$displayWidth} 0 0 {$displayHeight} {$x} {$y} cm /{$imageName} Do Q";
                 $cursorY = $y - $imageGap;
                 foreach ($captionLines as $captionLine) {
-                    $addTextLine($this->encode_pdf_text($captionLine), $margin + 12);
+                    $addTextLine($this->encode_pdf_text($captionLine), $margin + 12, 'F1', 9, $colors['muted'], 12);
                 }
+                $cursorY -= 4;
             }
         }
 
@@ -1188,7 +1303,7 @@ class Schmitke_Windows_Configurator {
         $pagesObjNum = 2;
         $pageObjStart = 3;
         $fontObjNum = $pageObjStart + $pageCount;
-        $imageObjStart = $fontObjNum + 1;
+        $imageObjStart = $fontObjNum + 2;
         $contentObjStart = $imageObjStart + $imageCount;
 
         $objects = [];
@@ -1200,6 +1315,7 @@ class Schmitke_Windows_Configurator {
         $objects[$pagesObjNum] = "<< /Type /Pages /Kids [" . implode(' ', $kids) . "] /Count {$pageCount} >>";
 
         $objects[$fontObjNum] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
+        $objects[$fontObjNum + 1] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
 
         foreach ($images as $idx => $image) {
             $objNum = $imageObjStart + $idx;
@@ -1212,7 +1328,7 @@ class Schmitke_Windows_Configurator {
             $objects[$contentObjNum] = "<< /Length " . strlen($content) . " >>\nstream\n{$content}\nendstream";
         }
 
-        $resource = "<< /Font << /F1 {$fontObjNum} 0 R >>";
+        $resource = "<< /Font << /F1 {$fontObjNum} 0 R /F2 " . ($fontObjNum + 1) . " 0 R >>";
         if ($imageCount) {
             $xObjects = [];
             for ($i = 0; $i < $imageCount; $i++) {
@@ -1320,33 +1436,36 @@ class Schmitke_Windows_Configurator {
             wp_send_json_error(['message' => $missingPositionsMessage], 422);
         }
 
+        $pdfMeta = [
+            'title' => 'Fenster-Konfigurator Angebotsanfrage',
+            'subtitle' => 'Anfragezusammenfassung',
+            'date' => date_i18n('d.m.Y H:i'),
+        ];
+
         $blocks = [
-            ['type' => 'text', 'text' => 'Fenster-Konfigurator Angebotsanfrage'],
-            ['type' => 'text', 'text' => 'Datum: ' . date_i18n('d.m.Y H:i')],
-            ['type' => 'text', 'text' => ''],
-            ['type' => 'text', 'text' => 'Kontakt'],
+            ['type' => 'section', 'text' => 'Kontakt'],
             ['type' => 'text', 'text' => 'Name: ' . $contactName],
             ['type' => 'text', 'text' => 'E-Mail: ' . $contactEmail],
         ];
         if ($contactPhone) $blocks[] = ['type' => 'text', 'text' => 'Telefon: ' . $contactPhone];
         if ($contactAddress) $blocks[] = ['type' => 'text', 'text' => 'Adresse: ' . $contactAddress];
         if ($contactMessage) {
-            $blocks[] = ['type' => 'text', 'text' => ''];
-            $blocks[] = ['type' => 'text', 'text' => 'Nachricht:'];
+            $blocks[] = ['type' => 'spacer', 'height' => 10];
+            $blocks[] = ['type' => 'section', 'text' => 'Nachricht'];
             $blocks[] = ['type' => 'text', 'text' => $contactMessage];
         }
 
         $images = [];
-        $blocks[] = ['type' => 'text', 'text' => ''];
-        $blocks[] = ['type' => 'text', 'text' => 'Gespeicherte Positionen:'];
+        $blocks[] = ['type' => 'spacer', 'height' => 14];
+        $blocks[] = ['type' => 'section', 'text' => 'Gespeicherte Positionen'];
         foreach ($positions as $index => $pos) {
             $title = 'Position ' . ($index + 1);
             if (!empty($pos['name'])) {
                 $title .= ' - ' . $pos['name'];
             }
-            $blocks[] = ['type' => 'text', 'text' => $title];
+            $blocks[] = ['type' => 'subsection', 'text' => $title];
             foreach ($pos['summary'] as $line) {
-                $blocks[] = ['type' => 'text', 'text' => '  - ' . $line];
+                $blocks[] = ['type' => 'text', 'text' => '- ' . $line];
             }
             foreach ($pos['uploads'] as $upload) {
                 if (empty($upload['data'])) continue;
@@ -1361,7 +1480,7 @@ class Schmitke_Windows_Configurator {
                 ];
                 $imageName = 'Im' . count($images);
                 if (!empty($upload['label'])) {
-                    $blocks[] = ['type' => 'text', 'text' => '  Foto: ' . $upload['label']];
+                    $blocks[] = ['type' => 'text', 'text' => 'Foto: ' . $upload['label']];
                 }
                 $caption = [];
                 if (!empty($upload['note'])) {
@@ -1378,9 +1497,10 @@ class Schmitke_Windows_Configurator {
                     'caption' => $caption,
                 ];
             }
+            $blocks[] = ['type' => 'spacer', 'height' => 6];
         }
 
-        $pdfContent = $this->build_pdf_document($blocks, $images);
+        $pdfContent = $this->build_pdf_document($blocks, $images, $data['design'] ?? [], $pdfMeta);
         $tmpFile = wp_tempnam('schmitke-windows-offer');
         if (!$tmpFile) {
             wp_send_json_error(['message' => 'PDF konnte nicht erstellt werden.'], 500);
