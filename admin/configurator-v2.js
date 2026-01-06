@@ -251,6 +251,8 @@
       $('<label>Code <input type="text"></label>').find('input').val(opt.option_code||'').on('input', function(){ opt.option_code = $(this).val(); }).end().appendTo(optBody);
       $('<label>Label DE <input type="text"></label>').find('input').val((opt.labels && opt.labels.de) || '').on('input', function(){ opt.labels.de = $(this).val(); }).end().appendTo(optBody);
       $('<label>Label EN <input type="text"></label>').find('input').val((opt.labels && opt.labels.en) || '').on('input', function(){ opt.labels.en = $(this).val(); }).end().appendTo(optBody);
+      $('<label>Info DE <textarea rows="2"></textarea></label>').find('textarea').val((opt.info && opt.info.de) || '').on('input', function(){ opt.info = opt.info || {de:'', en:''}; opt.info.de = $(this).val(); }).end().appendTo(optBody);
+      $('<label>Info EN <textarea rows="2"></textarea></label>').find('textarea').val((opt.info && opt.info.en) || '').on('input', function(){ opt.info = opt.info || {de:'', en:''}; opt.info.en = $(this).val(); }).end().appendTo(optBody);
       addToggle(optBody, 'is_default', opt, 'Default');
       addNumber(optBody, 'price', opt, 'Preis', 0, null, true);
       $('<label>Unit <input type="text"></label>').find('input').val(opt.unit||'').on('input', function(){ opt.unit = $(this).val(); }).end().appendTo(optBody);
@@ -391,6 +393,7 @@
     return {
       option_code: '',
       labels: {de:'', en:''},
+      info: {de:'', en:''},
       image_id: 0,
       is_default: false,
       price: null,

@@ -518,6 +518,8 @@ class Schmitke_Windows_Configurator {
         add_action('wp_enqueue_scripts', [$this, 'register_assets']);
         add_action('wp_enqueue_scripts', [$this, 'maybe_enqueue_assets'], 20);
         add_action('admin_enqueue_scripts', [$this, 'admin_assets']);
+        add_action('wp_ajax_schmitke_windows_request_quote', [$this, 'handle_quote_request']);
+        add_action('wp_ajax_nopriv_schmitke_windows_request_quote', [$this, 'handle_quote_request']);
     }
 
     public static function default_data() {
@@ -876,6 +878,8 @@ class Schmitke_Windows_Configurator {
         }
 
         $data['locale'] = (substr(get_locale(), 0, 2) === 'de') ? 'de' : 'en';
+        $data['ajax_url'] = admin_url('admin-ajax.php');
+        $data['ajax_nonce'] = wp_create_nonce('schmitke_windows_quote');
 
         wp_localize_script('schmitke-windows-configurator', 'SCHMITKE_WINDOWS_DATA', $data);
     }
@@ -1059,6 +1063,176 @@ class Schmitke_Windows_Configurator {
 
         if (empty($clean)) return $fallback;
         return $clean;
+    }
+
+    private function build_pdf_document(array $lines): string {
+        $escapedLines = array_map(function($line) {
+            $line = str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $line);
+            return $line;
+        }, $lines);
+
+        $content = "BT\n/F1 11 Tf\n72 770 Td\n";
+        foreach ($escapedLines as $line) {
+            $content .= "({$line}) Tj\n0 -14 Td\n";
+        }
+        $content .= "ET";
+
+        $objects = [];
+        $objects[] = "<< /Type /Catalog /Pages 2 0 R >>";
+        $objects[] = "<< /Type /Pages /Kids [3 0 R] /Count 1 >>";
+        $objects[] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>";
+        $objects[] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+        $objects[] = "<< /Length " . strlen($content) . " >>\nstream\n{$content}\nendstream";
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [];
+        foreach ($objects as $i => $obj) {
+            $offsets[] = strlen($pdf);
+            $objIndex = $i + 1;
+            $pdf .= "{$objIndex} 0 obj\n{$obj}\nendobj\n";
+        }
+
+        $xref = strlen($pdf);
+        $pdf .= "xref\n0 " . (count($objects) + 1) . "\n";
+        $pdf .= "0000000000 65535 f \n";
+        foreach ($offsets as $offset) {
+            $pdf .= sprintf("%010d 00000 n \n", $offset);
+        }
+        $pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root 1 0 R >>\n";
+        $pdf .= "startxref\n{$xref}\n%%EOF";
+
+        return $pdf;
+    }
+
+    public function handle_quote_request() {
+        check_ajax_referer('schmitke_windows_quote', 'nonce');
+
+        $payloadRaw = wp_unslash($_POST['payload'] ?? '');
+        $payload = json_decode($payloadRaw, true);
+        if (!is_array($payload)) {
+            wp_send_json_error(['message' => 'Ungültige Anfrage.'], 400);
+        }
+
+        $contact = $payload['contact'] ?? [];
+        $contactName = sanitize_text_field($contact['name'] ?? '');
+        $contactEmail = sanitize_email($contact['email'] ?? '');
+        $contactPhone = sanitize_text_field($contact['phone'] ?? '');
+        $contactAddress = sanitize_text_field($contact['address'] ?? '');
+        $contactMessage = sanitize_textarea_field($contact['message'] ?? '');
+
+        if (empty($contactName) || empty($contactEmail)) {
+            wp_send_json_error(['message' => 'Bitte Name und E-Mail angeben.'], 422);
+        }
+
+        $positions = [];
+        if (!empty($payload['positions']) && is_array($payload['positions'])) {
+            foreach ($payload['positions'] as $pos) {
+                if (!is_array($pos)) continue;
+                $name = sanitize_text_field($pos['name'] ?? '');
+                $summary = [];
+                if (!empty($pos['summary']) && is_array($pos['summary'])) {
+                    foreach ($pos['summary'] as $line) {
+                        $summary[] = sanitize_text_field($line);
+                    }
+                }
+                if ($name !== '' || !empty($summary)) {
+                    $positions[] = [
+                        'name' => $name,
+                        'summary' => $summary,
+                    ];
+                }
+            }
+        }
+
+        $current = [];
+        if (!empty($payload['current']) && is_array($payload['current'])) {
+            foreach ($payload['current'] as $line) {
+                $current[] = sanitize_text_field($line);
+            }
+        }
+
+        if (empty($positions) && empty($current)) {
+            wp_send_json_error(['message' => 'Keine Auswahl übermittelt.'], 422);
+        }
+
+        $data = $this->get_data();
+        $to = sanitize_email($data['email_to'] ?? '');
+        if (empty($to)) {
+            wp_send_json_error(['message' => 'Empfängeradresse fehlt.'], 500);
+        }
+
+        $lines = [
+            'Fenster-Konfigurator Angebotsanfrage',
+            'Datum: ' . date_i18n('d.m.Y H:i'),
+            '',
+            'Kontakt',
+            'Name: ' . $contactName,
+            'E-Mail: ' . $contactEmail,
+        ];
+        if ($contactPhone) $lines[] = 'Telefon: ' . $contactPhone;
+        if ($contactAddress) $lines[] = 'Adresse: ' . $contactAddress;
+        if ($contactMessage) {
+            $lines[] = '';
+            $lines[] = 'Nachricht:';
+            $lines[] = $contactMessage;
+        }
+
+        if (!empty($positions)) {
+            $lines[] = '';
+            $lines[] = 'Gespeicherte Positionen:';
+            foreach ($positions as $index => $pos) {
+                $title = 'Position ' . ($index + 1);
+                if (!empty($pos['name'])) {
+                    $title .= ' - ' . $pos['name'];
+                }
+                $lines[] = $title;
+                foreach ($pos['summary'] as $line) {
+                    $lines[] = '  - ' . $line;
+                }
+            }
+        }
+
+        if (!empty($current)) {
+            $lines[] = '';
+            $lines[] = 'Aktuelle Auswahl:';
+            foreach ($current as $line) {
+                $lines[] = '  - ' . $line;
+            }
+        }
+
+        $pdfContent = $this->build_pdf_document($lines);
+        $tmpFile = wp_tempnam('schmitke-windows-offer');
+        if (!$tmpFile) {
+            wp_send_json_error(['message' => 'PDF konnte nicht erstellt werden.'], 500);
+        }
+        file_put_contents($tmpFile, $pdfContent);
+
+        $subject = 'Angebotsanfrage Fenster-Konfigurator';
+        $bodyLines = [
+            'Neue Angebotsanfrage aus dem Fenster-Konfigurator.',
+            '',
+            'Kontakt:',
+            'Name: ' . $contactName,
+            'E-Mail: ' . $contactEmail,
+        ];
+        if ($contactPhone) $bodyLines[] = 'Telefon: ' . $contactPhone;
+        if ($contactAddress) $bodyLines[] = 'Adresse: ' . $contactAddress;
+        if ($contactMessage) {
+            $bodyLines[] = '';
+            $bodyLines[] = 'Nachricht:';
+            $bodyLines[] = $contactMessage;
+        }
+        $bodyLines[] = '';
+        $bodyLines[] = 'Die PDF-Zusammenfassung ist angehängt.';
+
+        $sent = wp_mail($to, $subject, implode("\n", $bodyLines), [], [$tmpFile]);
+        @unlink($tmpFile);
+
+        if (!$sent) {
+            wp_send_json_error(['message' => 'E-Mail konnte nicht versendet werden.'], 500);
+        }
+
+        wp_send_json_success(['reset' => true]);
     }
 
     public function admin_page() {
