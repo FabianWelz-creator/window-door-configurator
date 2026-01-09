@@ -80,6 +80,11 @@ class Schmitke_Windows_Configurator {
     }
 
     public function shortcode(): string {
+        if (!wp_style_is('schmitke-windows-configurator', 'registered') || !wp_script_is('schmitke-windows-configurator', 'registered')) {
+            $this->register_assets();
+        }
+        wp_enqueue_style('schmitke-windows-configurator');
+        wp_enqueue_script('schmitke-windows-configurator');
         return '<div id="schmitke-window-configurator"></div>';
     }
 
