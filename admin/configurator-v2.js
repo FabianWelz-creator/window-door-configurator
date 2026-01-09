@@ -8,6 +8,16 @@
   app.on('change input', 'input, textarea, select', function(){
     syncInputs();
   });
+  app.on('click', '.schmitke-toggle', function(){
+    const card = $(this).closest('.v2-element');
+    if(!card.length) return;
+    const uid = card.data('uid');
+    const isOpen = card.toggleClass('open').hasClass('open');
+    if(uid){
+      elementOpenState.set(uid, isOpen);
+    }
+    $(this).text(isOpen ? 'Schließen' : 'Öffnen');
+  });
 
   function defaultDesign(){
     return {
