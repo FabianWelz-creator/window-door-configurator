@@ -79,6 +79,10 @@ class Schmitke_Windows_Configurator {
         }
     }
 
+    public function shortcode(): string {
+        return '<div id="schmitke-window-configurator"></div>';
+    }
+
     public function admin_assets($hook) {
         if ($hook !== 'settings_page_schmitke-windows-configurator') return;
         wp_enqueue_media();
