@@ -162,9 +162,10 @@
     });
   }
 
-  function syncInputs(){
+  function syncInputs(options){
+    const opts = options || {};
     hidden.val(JSON.stringify(settings));
-    if(jsonFallback.length){
+    if(jsonFallback.length && opts.syncFallback !== false){
       jsonFallback.val(JSON.stringify(settings, null, 2));
     }
   }
@@ -223,9 +224,9 @@
         settings = $.extend(true, {}, defaults, parsed);
         normalizeSettings();
         if(shouldRender){
-          render();
+          render({ syncFallback: false });
         }else{
-          syncInputs();
+          syncInputs({ syncFallback: false });
         }
         return true;
       }
@@ -596,7 +597,7 @@
     return (val||'').split(',').map(v=>v.trim()).filter(Boolean);
   }
 
-  function render(){
+  function render(options){
     captureElementOpenState();
     normalizeSettings();
     app.empty();
@@ -630,7 +631,7 @@
     app.append(list);
     app.append(rulesContainer);
 
-    syncInputs();
+    syncInputs(options);
   }
 
   render();
