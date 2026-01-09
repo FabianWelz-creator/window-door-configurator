@@ -616,7 +616,7 @@ class Schmitke_Windows_Configurator {
             <div class="notice notice-info"><p><?php printf(esc_html__('Frontend uses v2 data: %s', 'schmitke-doors'), !empty($settings['elements']) ? esc_html__('yes', 'schmitke-doors') : esc_html__('no', 'schmitke-doors')); ?></p></div>
             <form method="post" action="options.php" id="schmitke-configurator-v2-form">
                 <?php settings_fields('schmitke_configurator_settings_v2_group'); ?>
-                <input type="hidden" id="schmitke-configurator-v2-input" name="<?php echo esc_attr($opt); ?>" value="<?php echo esc_attr(wp_json_encode($settings)); ?>" />
+                <input type="hidden" id="schmitke-configurator-v2-input" value="<?php echo esc_attr(wp_json_encode($settings)); ?>" />
 
                 <div id="schmitke-configurator-v2-app" class="schmitke-v2-admin" data-option-key="<?php echo esc_attr($opt); ?>">
                     <p><?php esc_html_e('Lade und bearbeite Elemente, Optionen und Regeln direkt in der Oberfläche.', 'schmitke-doors'); ?></p>
@@ -624,7 +624,7 @@ class Schmitke_Windows_Configurator {
 
                 <h2><?php esc_html_e('JSON Fallback', 'schmitke-doors'); ?></h2>
                 <p class="description"><?php esc_html_e('Falls benötigt, kann das Settings-JSON hier manuell editiert werden.', 'schmitke-doors'); ?></p>
-                <textarea id="schmitke-configurator-v2-json" class="large-text code" rows="8"><?php echo esc_textarea(wp_json_encode($settings, JSON_PRETTY_PRINT)); ?></textarea>
+                <textarea id="schmitke-configurator-v2-json" name="<?php echo esc_attr($opt); ?>" class="large-text code" rows="8"><?php echo esc_textarea(wp_json_encode($settings, JSON_PRETTY_PRINT)); ?></textarea>
 
                 <?php submit_button(__('Einstellungen speichern', 'schmitke-doors')); ?>
             </form>
