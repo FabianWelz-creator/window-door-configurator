@@ -131,7 +131,7 @@ class Document {
 }
 
 function getElHelper(document) {
-  const configuratorPath = path.join(__dirname, '..', 'public', 'configurator.js');
+  const configuratorPath = path.join(__dirname, '..', 'public', 'configurator-windows.js');
   const source = fs.readFileSync(configuratorPath, 'utf8');
   const match = source.match(/function el\([^)]*\)\s*\{[\s\S]*?return e;\s*\}/);
   if (!match) throw new Error('el helper not found');

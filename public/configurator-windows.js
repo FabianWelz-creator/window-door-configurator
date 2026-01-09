@@ -22,11 +22,16 @@
     return label || '';
   }
 
-  if(DATA.v2 && Array.isArray(DATA.v2.elements) && DATA.v2.elements.length){
-    renderV2(DATA.v2);
+  if(!DATA.v2 || !Array.isArray(DATA.v2.elements) || !DATA.v2.elements.length){
+    const msg = (LANG === 'de')
+      ? 'Der Konfigurator ist noch nicht konfiguriert.'
+      : 'The configurator has not been configured yet.';
+    root.innerHTML = '<div class="scc-card"><p>' + msg + '</p></div>';
     return;
   }
-  if(!DATA.models){ console.error('SCHMITKE_WINDOWS_DATA missing'); return; }
+
+  renderV2(DATA.v2);
+  return;
 
   function renderV2(settings){
     const elements = Array.isArray(settings.elements) ? settings.elements.slice() : [];

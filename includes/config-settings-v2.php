@@ -2,7 +2,7 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Centralized settings handler for the window/door configurator (v2 format).
+ * Centralized settings handler for the window configurator (v2 format).
  *
  * Stored under the option key {@see self::OPTION_KEY} with a single array
  * payload:
@@ -29,7 +29,6 @@ class Schmitke_Configurator_Settings_V2 {
         $legacyKeys = [
             'schmitke_configurator_settings',
             'schmitke_windows_configurator_data',
-            'schmitke_doors_configurator_data_v21',
         ];
 
         foreach ($legacyKeys as $legacyKey) {
