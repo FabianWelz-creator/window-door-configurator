@@ -169,22 +169,82 @@
     }
   }
 
+  function stripJsonComments(input){
+    if(!input) return '';
+    let output = '';
+    let inString = false;
+    let stringChar = '';
+    for(let i = 0; i < input.length; i++){
+      const char = input[i];
+      const next = input[i + 1];
+      if(inString){
+        output += char;
+        if(char === '\\' && typeof next !== 'undefined'){
+          output += next;
+          i++;
+          continue;
+        }
+        if(char === stringChar){
+          inString = false;
+        }
+        continue;
+      }
+      if(char === '"' || char === "'"){
+        inString = true;
+        stringChar = char;
+        output += char;
+        continue;
+      }
+      if(char === '/' && next === '/'){
+        i += 2;
+        while(i < input.length && input[i] !== '\n'){
+          i++;
+        }
+        output += '\n';
+        continue;
+      }
+      if(char === '/' && next === '*'){
+        i += 2;
+        while(i < input.length && !(input[i] === '*' && input[i + 1] === '/')){
+          i++;
+        }
+        i++;
+        continue;
+      }
+      output += char;
+    }
+    return output;
+  }
+
+  function applyJsonFallback(value, shouldRender){
+    try{
+      const parsed = JSON.parse(stripJsonComments(value));
+      if(parsed && typeof parsed === 'object'){
+        settings = $.extend(true, {}, defaults, parsed);
+        normalizeSettings();
+        if(shouldRender){
+          render();
+        }else{
+          syncInputs();
+        }
+        return true;
+      }
+    }catch(e){/* ignore parse errors */}
+    return false;
+  }
+
   if(form.length){
     form.on('submit', function(){
+      if(jsonFallback.length){
+        applyJsonFallback(jsonFallback.val(), false);
+      }
       syncInputs();
     });
   }
 
   if(jsonFallback.length){
     jsonFallback.on('change blur', function(){
-      try{
-        const parsed = JSON.parse($(this).val());
-        if(parsed && typeof parsed === 'object'){
-          settings = $.extend(true, {}, defaults, parsed);
-          normalizeSettings();
-          render();
-        }
-      }catch(e){/* ignore parse errors */}
+      applyJsonFallback($(this).val(), true);
     });
   }
 
