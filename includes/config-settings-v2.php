@@ -146,7 +146,8 @@ class Schmitke_Configurator_Settings_V2 {
 
     public static function sanitize_settings($input) {
         if (is_string($input)) {
-            $decoded = json_decode(stripslashes($input), true);
+            $cleaned = self::strip_json_comments(stripslashes($input));
+            $decoded = json_decode($cleaned, true);
             if (is_array($decoded)) {
                 $input = $decoded;
             }
@@ -182,6 +183,63 @@ class Schmitke_Configurator_Settings_V2 {
             'rules' => $rules,
             'global_ui' => $globalUi,
         ];
+    }
+
+    private static function strip_json_comments(string $input): string {
+        if ($input === '') {
+            return '';
+        }
+        $output = '';
+        $inString = false;
+        $stringChar = '';
+        $length = strlen($input);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $input[$i];
+            $next = ($i + 1 < $length) ? $input[$i + 1] : '';
+
+            if ($inString) {
+                $output .= $char;
+                if ($char === '\\' && $next !== '') {
+                    $output .= $next;
+                    $i++;
+                    continue;
+                }
+                if ($char === $stringChar) {
+                    $inString = false;
+                }
+                continue;
+            }
+
+            if ($char === '"' || $char === "'") {
+                $inString = true;
+                $stringChar = $char;
+                $output .= $char;
+                continue;
+            }
+
+            if ($char === '/' && $next === '/') {
+                $i += 2;
+                while ($i < $length && $input[$i] !== "\n") {
+                    $i++;
+                }
+                $output .= "\n";
+                continue;
+            }
+
+            if ($char === '/' && $next === '*') {
+                $i += 2;
+                while ($i < $length && !($input[$i] === '*' && ($i + 1 < $length && $input[$i + 1] === '/'))) {
+                    $i++;
+                }
+                $i++;
+                continue;
+            }
+
+            $output .= $char;
+        }
+
+        return $output;
     }
 
     private static function sanitize_global_ui($settings, $defaults) {
