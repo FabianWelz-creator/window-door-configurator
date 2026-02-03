@@ -262,6 +262,7 @@
       .appendTo(actions);
     $('<button type="button" class="button">'+('⬆')+'</button>').on('click', function(){ moveElement(idx, -1); }).appendTo(actions);
     $('<button type="button" class="button">'+('⬇')+'</button>').on('click', function(){ moveElement(idx, 1); }).appendTo(actions);
+    $('<button type="button" class="button">Duplizieren</button>').on('click', function(){ duplicateElement(idx); }).appendTo(actions);
     $('<button type="button" class="button button-link-delete">'+('Löschen')+'</button>').on('click', function(){
       settings.elements.splice(idx,1);
       render();
@@ -534,6 +535,19 @@
     settings.elements.splice(idx,1);
     settings.elements.splice(target,0,clone);
     settings.elements.forEach((el,i)=>{ el.order = i+1; });
+    render();
+  }
+
+  function duplicateElement(idx){
+    const source = settings.elements[idx];
+    if(!source) return;
+    const clone = $.extend(true, {}, source);
+    clone.__uid = generateUid();
+    settings.elements.splice(idx + 1, 0, clone);
+    const sourceOptions = settings.options_by_element[source.__uid] || [];
+    settings.options_by_element[clone.__uid] = sourceOptions.map(opt => $.extend(true, {}, opt));
+    settings.elements.forEach((el,i)=>{ el.order = i+1; });
+    elementOpenState.set(clone.__uid, true);
     render();
   }
 
