@@ -3,6 +3,8 @@
   if(!root) return;
   const DATA = (window.SCHMITKE_WINDOWS_DATA || {});
   const LANG = (DATA.locale === 'de') ? 'de' : 'en';
+  const IMAGE_FITS = ['contain', 'cover', 'scale-down'];
+  const normalizeImageFit = (value)=> IMAGE_FITS.includes(value) ? value : '';
 
   // Apply design variables early so v2 also benefits from them
   const d = DATA.design || {};
@@ -61,6 +63,7 @@
     const accordionEnabled = settings?.global_ui?.accordion_enabled !== false;
     const elementOpenState = new Map();
     const measurementLabels = (settings.measurements && settings.measurements.labels) ? settings.measurements.labels : {};
+    const globalImageFit = normalizeImageFit(settings?.global_ui?.image_fit_default) || 'contain';
     const getMeasurementLabel = (key, fallback) => {
       const lbl = measurementLabels[key];
       if(lbl) return getLabel(lbl);
@@ -320,6 +323,8 @@
               const reasonLabel = getLabel(disableReason);
               if(reasonLabel) tile.title = reasonLabel;
             }
+            const optionFit = normalizeImageFit(opt.image_fit) || globalImageFit;
+            tile.dataset.imgFit = optionFit;
             if(opt.image){
               const img = document.createElement('img');
               img.src = opt.image;
@@ -647,6 +652,7 @@
 
   const extrasMap = new Map((DATA.extras||[]).map(ex=>[ex.code, getLabel(ex.label)]));
   const OPTIONS = DATA.options || {};
+  const legacyImageFit = normalizeImageFit(DATA?.global_ui?.image_fit_default) || 'contain';
 
   function first(list, fallback){
     if(Array.isArray(list) && list.length) return list[0];
@@ -938,6 +944,8 @@
       optionsArray.map(option=>{
         const isSelected = option.key===currentKey;
         const card = el("div",{class:`swc-option-card${isSelected?" sel":""}`,onclick:()=>{ if(onSelect) onSelect(option.key); }});
+        const optionFit = normalizeImageFit(option.image_fit) || legacyImageFit;
+        card.dataset.imgFit = optionFit;
         if(option.image){
           card.appendChild(el("img",{src:option.image,alt:option.title||option.key||"Option",onerror:"this.style.display='none'"}));
         } else {

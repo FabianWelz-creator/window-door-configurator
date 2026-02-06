@@ -53,7 +53,7 @@
     elements: [],
     options_by_element: {},
     rules: [],
-    global_ui: {sticky_summary_enabled:true, accordion_enabled:true, locale_mode:'wp_locale'}
+    global_ui: {sticky_summary_enabled:true, accordion_enabled:true, locale_mode:'wp_locale', image_fit_default:'contain'}
   };
   let settings = $.extend(true, {}, defaults, data.settings || {});
   const elementOpenState = new Map();
@@ -79,6 +79,7 @@
     settings.design = $.extend(true, {}, defaultDesign(), settings.design || {});
     settings.measurements = $.extend(true, {}, defaultMeasurements(), settings.measurements || {});
     settings.messages = $.extend(true, {}, defaults.messages, settings.messages || {});
+    settings.global_ui = $.extend(true, {}, defaults.global_ui, settings.global_ui || {});
     const incomingOptions = settings.options_by_element || {};
     const mappedOptions = {};
     settings.elements = (settings.elements || []).map(function(el, idx){
@@ -334,6 +335,15 @@
       addNumber(optBody, 'price', opt, 'Preis', 0, null, true);
       $('<label>Unit <input type="text"></label>').find('input').val(opt.unit||'').on('input', function(){ opt.unit = $(this).val(); }).end().appendTo(optBody);
 
+      const imageFitSelect = $('<select></select>')
+        .append('<option value="">Standard (global)</option>')
+        .append('<option value="contain">Vollständig anzeigen (contain)</option>')
+        .append('<option value="cover">Füllen/Zuschneiden (cover)</option>')
+        .append('<option value="scale-down">Original (scale-down)</option>')
+        .val(opt.image_fit || '')
+        .on('change', function(){ opt.image_fit = $(this).val(); });
+      $('<label>Bilddarstellung</label>').append(imageFitSelect).appendTo(optBody);
+
       const imageField = $('<div class="schmitke-image-field"></div>').appendTo(optBody);
       $('<label>Bild (WP-Mediathek)</label>').appendTo(imageField);
       const imgRow = $('<div class="schmitke-image-row"></div>').appendTo(imageField);
@@ -400,6 +410,25 @@
       .on('input', function(){ settings.email_to = $(this).val(); })
       .end()
       .appendTo(grid);
+
+    return card;
+  }
+
+  function renderGlobalUiSection(){
+    const card = $('<div class="schmitke-card open"></div>');
+    const head = $('<div class="schmitke-model-head"></div>').appendTo(card);
+    $('<strong class="schmitke-model-title">Globale Darstellung</strong>').appendTo(head);
+    $('<div class="schmitke-model-actions"></div>').appendTo(head).append('<span class="description">Standard-Einstellungen für die Option-Kacheln</span>');
+
+    const body = $('<div class="schmitke-model-body"></div>').appendTo(card);
+    const grid = $('<div class="schmitke-model-grid"></div>').appendTo(body);
+    const imageFitSelect = $('<select></select>')
+      .append('<option value="contain">Vollständig anzeigen (contain)</option>')
+      .append('<option value="cover">Füllen/Zuschneiden (cover)</option>')
+      .append('<option value="scale-down">Original (scale-down)</option>')
+      .val(settings.global_ui.image_fit_default || 'contain')
+      .on('change', function(){ settings.global_ui.image_fit_default = $(this).val(); });
+    $('<label>Bilddarstellung (Standard)</label>').append(imageFitSelect).appendTo(grid);
 
     return card;
   }
@@ -521,6 +550,7 @@
       labels: {de:'', en:''},
       info: {de:'', en:''},
       image_id: 0,
+      image_fit: '',
       is_default: false,
       price: null,
       unit: '',
@@ -617,6 +647,7 @@
     app.empty();
     app.append(renderEmailSection());
     app.append(renderDesignSection());
+    app.append(renderGlobalUiSection());
     app.append(renderMeasurementsSection());
     app.append(renderMessagesSection());
     if($.fn.wpColorPicker){
