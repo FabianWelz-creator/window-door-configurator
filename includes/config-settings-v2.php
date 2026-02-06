@@ -245,6 +245,7 @@ class Schmitke_Configurator_Settings_V2 {
     private static function sanitize_global_ui($settings, $defaults) {
         $source = is_array($settings) ? $settings : [];
         $allowedLocaleModes = ['wp_locale', 'force_de', 'force_en'];
+        $allowedImageFits = ['contain', 'cover', 'scale-down'];
 
         $stickySummary = isset($source['sticky_summary_enabled'])
             ? (bool)$source['sticky_summary_enabled']
@@ -259,10 +260,16 @@ class Schmitke_Configurator_Settings_V2 {
             $localeMode = $defaults['locale_mode'] ?? 'wp_locale';
         }
 
+        $imageFit = isset($source['image_fit_default']) ? sanitize_key($source['image_fit_default']) : ($defaults['image_fit_default'] ?? 'contain');
+        if (!in_array($imageFit, $allowedImageFits, true)) {
+            $imageFit = $defaults['image_fit_default'] ?? 'contain';
+        }
+
         return [
             'sticky_summary_enabled' => $stickySummary,
             'accordion_enabled' => $accordion,
             'locale_mode' => $localeMode,
+            'image_fit_default' => $imageFit,
         ];
     }
 
@@ -333,6 +340,7 @@ class Schmitke_Configurator_Settings_V2 {
                 'sticky_summary_enabled' => true,
                 'accordion_enabled' => true,
                 'locale_mode' => 'wp_locale',
+                'image_fit_default' => 'contain',
             ],
         ];
     }
@@ -570,6 +578,7 @@ class Schmitke_Configurator_Settings_V2 {
                     'en' => sanitize_text_field($item['info']['en'] ?? ''),
                 ],
                 'image_id' => 0,
+                'image_fit' => '',
                 'is_default' => !empty($item['default']) || ($index === 0 && !array_key_exists('default', $item)),
                 'price' => null,
                 'unit' => null,
@@ -690,11 +699,16 @@ class Schmitke_Configurator_Settings_V2 {
     private static function sanitize_option_entries($options) {
         $result = [];
         if (!is_array($options)) return $result;
+        $allowedImageFits = ['contain', 'cover', 'scale-down'];
 
         foreach ($options as $opt) {
             if (!is_array($opt)) continue;
             $code = sanitize_key($opt['option_code'] ?? '');
             if ($code === '') continue;
+            $imageFit = sanitize_key($opt['image_fit'] ?? '');
+            if (!in_array($imageFit, $allowedImageFits, true)) {
+                $imageFit = '';
+            }
             $result[] = [
                 'option_code' => $code,
                 'labels' => [
@@ -706,6 +720,7 @@ class Schmitke_Configurator_Settings_V2 {
                     'en' => sanitize_text_field($opt['info']['en'] ?? ''),
                 ],
                 'image_id' => intval($opt['image_id'] ?? 0),
+                'image_fit' => $imageFit,
                 'is_default' => isset($opt['is_default']) ? (bool)$opt['is_default'] : false,
                 'price' => isset($opt['price']) ? $opt['price'] : null,
                 'unit' => isset($opt['unit']) ? sanitize_text_field($opt['unit']) : null,
