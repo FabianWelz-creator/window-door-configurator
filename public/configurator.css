@@ -78,6 +78,8 @@ textarea{resize:vertical}
 .swc-option-card[data-img-fit="contain"] img{object-fit:contain}
 .swc-option-card[data-img-fit="cover"] img{object-fit:cover}
 .swc-option-card[data-img-fit="scale-down"] img{object-fit:scale-down}
+.swc-option-card[data-img-fit="fill"] img{object-fit:fill}
+.swc-option-card[data-img-fit="none"] img{object-fit:none}
 .swc-option-text{padding:8px;display:flex;flex-direction:column;gap:2px;flex:1}
 .swc-option-title-row{display:flex;align-items:flex-start;gap:6px}
 .swc-option-title{font-weight:700;font-size:14px;color:var(--scc-text,#111)}
