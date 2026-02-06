@@ -245,7 +245,6 @@ class Schmitke_Configurator_Settings_V2 {
     private static function sanitize_global_ui($settings, $defaults) {
         $source = is_array($settings) ? $settings : [];
         $allowedLocaleModes = ['wp_locale', 'force_de', 'force_en'];
-        $allowedImageFits = ['contain', 'cover', 'scale-down'];
 
         $stickySummary = isset($source['sticky_summary_enabled'])
             ? (bool)$source['sticky_summary_enabled']
@@ -260,16 +259,10 @@ class Schmitke_Configurator_Settings_V2 {
             $localeMode = $defaults['locale_mode'] ?? 'wp_locale';
         }
 
-        $imageFit = isset($source['image_fit_default']) ? sanitize_key($source['image_fit_default']) : ($defaults['image_fit_default'] ?? 'contain');
-        if (!in_array($imageFit, $allowedImageFits, true)) {
-            $imageFit = $defaults['image_fit_default'] ?? 'contain';
-        }
-
         return [
             'sticky_summary_enabled' => $stickySummary,
             'accordion_enabled' => $accordion,
             'locale_mode' => $localeMode,
-            'image_fit_default' => $imageFit,
         ];
     }
 
@@ -340,7 +333,6 @@ class Schmitke_Configurator_Settings_V2 {
                 'sticky_summary_enabled' => true,
                 'accordion_enabled' => true,
                 'locale_mode' => 'wp_locale',
-                'image_fit_default' => 'contain',
             ],
         ];
     }
@@ -699,7 +691,7 @@ class Schmitke_Configurator_Settings_V2 {
     private static function sanitize_option_entries($options) {
         $result = [];
         if (!is_array($options)) return $result;
-        $allowedImageFits = ['contain', 'cover', 'scale-down'];
+        $allowedImageFits = ['contain', 'cover', 'scale-down', 'fill', 'none'];
 
         foreach ($options as $opt) {
             if (!is_array($opt)) continue;
