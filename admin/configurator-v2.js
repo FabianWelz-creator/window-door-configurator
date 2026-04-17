@@ -89,7 +89,12 @@
       if(typeof el.order === 'undefined') el.order = idx + 1;
       const optKey = incomingOptions.hasOwnProperty(el.__uid) ? el.__uid : el.element_key;
       if(optKey && incomingOptions[optKey]){
-        mappedOptions[el.__uid] = incomingOptions[optKey];
+        mappedOptions[el.__uid] = (incomingOptions[optKey] || [])
+          .map(function(opt, optIdx){
+            if(typeof opt.order === 'undefined') opt.order = optIdx + 1;
+            return opt;
+          })
+          .sort(function(a,b){ return (a.order||0) - (b.order||0); });
       }
       return el;
     });
@@ -309,7 +314,7 @@
     $('<button type="button" class="button">+ Option</button>').on('click', function(){
       const key = el.__uid;
       settings.options_by_element[key] = settings.options_by_element[key] || [];
-      settings.options_by_element[key].push(defaultOption());
+      settings.options_by_element[key].push(defaultOption(settings.options_by_element[key].length + 1));
       render();
     }).appendTo(optHeader);
 
@@ -319,8 +324,11 @@
       const optCard = $('<div class="schmitke-card schmitke-option-card"></div>');
       const optHead = $('<div class="schmitke-model-head"></div>').appendTo(optCard);
       $('<strong class="schmitke-card-title"></strong>').text(opt.option_code || 'Option').appendTo(optHead);
+      $('<button type="button" class="button">'+('⬆')+'</button>').on('click', function(){ moveOption(optKey, optIdx, -1); }).appendTo(optHead);
+      $('<button type="button" class="button">'+('⬇')+'</button>').on('click', function(){ moveOption(optKey, optIdx, 1); }).appendTo(optHead);
       $('<button type="button" class="button button-link-delete">'+('Löschen')+'</button>').on('click', function(){
         options.splice(optIdx,1);
+        updateOptionOrders(optKey);
         settings.options_by_element[optKey] = options;
         render();
       }).appendTo(optHead);
@@ -332,6 +340,7 @@
       $('<label>Info DE <textarea rows="2"></textarea></label>').find('textarea').val((opt.info && opt.info.de) || '').on('input', function(){ opt.info = opt.info || {de:'', en:''}; opt.info.de = $(this).val(); }).end().appendTo(optBody);
       $('<label>Info EN <textarea rows="2"></textarea></label>').find('textarea').val((opt.info && opt.info.en) || '').on('input', function(){ opt.info = opt.info || {de:'', en:''}; opt.info.en = $(this).val(); }).end().appendTo(optBody);
       addToggle(optBody, 'is_default', opt, 'Default');
+      addNumber(optBody, 'order', opt, 'Reihenfolge');
       addNumber(optBody, 'price', opt, 'Preis', 0, null, true);
       $('<label>Unit <input type="text"></label>').find('input').val(opt.unit||'').on('input', function(){ opt.unit = $(this).val(); }).end().appendTo(optBody);
 
@@ -527,11 +536,12 @@
     };
   }
 
-  function defaultOption(){
+  function defaultOption(order){
     return {
       option_code: '',
       labels: {de:'', en:''},
       info: {de:'', en:''},
+      order: order || 1,
       image_id: 0,
       image_fit: '',
       is_default: false,
@@ -558,7 +568,11 @@
     clone.__uid = generateUid();
     settings.elements.splice(idx + 1, 0, clone);
     const sourceOptions = settings.options_by_element[source.__uid] || [];
-    settings.options_by_element[clone.__uid] = sourceOptions.map(opt => $.extend(true, {}, opt));
+    settings.options_by_element[clone.__uid] = sourceOptions.map(function(opt, optIdx){
+      const cloneOpt = $.extend(true, {}, opt);
+      cloneOpt.order = optIdx + 1;
+      return cloneOpt;
+    });
     settings.elements.forEach((el,i)=>{ el.order = i+1; });
     elementOpenState.set(clone.__uid, true);
     render();
@@ -624,6 +638,25 @@
     return (val||'').split(',').map(v=>v.trim()).filter(Boolean);
   }
 
+  function updateOptionOrders(elementKey){
+    const options = settings.options_by_element[elementKey] || [];
+    options.forEach(function(opt, idx){
+      opt.order = idx + 1;
+    });
+  }
+
+  function moveOption(elementKey, idx, delta){
+    const options = settings.options_by_element[elementKey] || [];
+    const target = idx + delta;
+    if(target < 0 || target >= options.length) return;
+    const clone = options[idx];
+    options.splice(idx, 1);
+    options.splice(target, 0, clone);
+    updateOptionOrders(elementKey);
+    settings.options_by_element[elementKey] = options;
+    render();
+  }
+
   function render(options){
     captureElementOpenState();
     normalizeSettings();
@@ -638,6 +671,11 @@
 
     const list = $('<div class="schmitke-v2-element-list"></div>');
     settings.elements.sort((a,b)=> (a.order||0)-(b.order||0));
+    Object.keys(settings.options_by_element || {}).forEach(function(key){
+      const options = settings.options_by_element[key] || [];
+      options.sort(function(a,b){ return (a.order||0) - (b.order||0); });
+      settings.options_by_element[key] = options;
+    });
     settings.elements.forEach((el, idx)=>{
       const card = elementTemplate(el, idx);
       list.append(card);

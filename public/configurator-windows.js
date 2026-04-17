@@ -302,7 +302,10 @@
           body.appendChild(note);
         } else {
           const allowedSet = ruleEffects.filters.get(el.element_key);
-          const opts = (optionsMap[el.element_key] || []).filter(opt=>{
+          const opts = (optionsMap[el.element_key] || [])
+            .slice()
+            .sort((a,b)=> (a.order||0)-(b.order||0))
+            .filter(opt=>{
             if(!allowedSet) return true;
             return allowedSet.has(opt.option_code);
           });
@@ -367,7 +370,11 @@
                 if(idx >= 0){ cur.splice(idx,1); } else { cur.push(opt.option_code); }
                 state.selections[el.element_key] = cur;
               } else {
-                state.selections[el.element_key] = opt.option_code;
+                if(state.selections[el.element_key] === opt.option_code){
+                  delete state.selections[el.element_key];
+                } else {
+                  state.selections[el.element_key] = opt.option_code;
+                }
               }
               renderElements();
               renderSummary();
