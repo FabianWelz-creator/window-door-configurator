@@ -111,7 +111,8 @@
   const attachmentCache = {};
   function resolveAttachmentUrl(id){
     return new Promise(function(resolve){
-      if(!id || !wp || !wp.media || !wp.media.attachment){
+      const mediaApi = window.wp && window.wp.media ? window.wp.media : null;
+      if(!id || !mediaApi || !mediaApi.attachment){
         resolve('');
         return;
       }
@@ -120,7 +121,7 @@
         return;
       }
       try{
-        const attachment = wp.media.attachment(id);
+        const attachment = mediaApi.attachment(id);
         if(!attachment){
           resolve('');
           return;
@@ -138,8 +139,9 @@
   }
 
   function pickOptionImage(option, previewEl){
-    if(!wp || !wp.media) return;
-    const frame = wp.media({
+    const mediaApi = window.wp && window.wp.media ? window.wp.media : null;
+    if(!mediaApi) return;
+    const frame = mediaApi({
       title: 'Bild auswählen',
       button: { text: 'Übernehmen' },
       multiple: false
@@ -266,8 +268,8 @@
     $('<button type="button" class="button schmitke-toggle"></button>')
       .text(startOpen ? 'Schließen' : 'Öffnen')
       .appendTo(actions);
-    $('<button type="button" class="button">'+('⬆')+'</button>').on('click', function(){ moveElement(idx, -1); }).appendTo(actions);
-    $('<button type="button" class="button">'+('⬇')+'</button>').on('click', function(){ moveElement(idx, 1); }).appendTo(actions);
+    $('<button type="button" class="button">Nach oben</button>').on('click', function(){ moveElement(idx, -1); }).appendTo(actions);
+    $('<button type="button" class="button">Nach unten</button>').on('click', function(){ moveElement(idx, 1); }).appendTo(actions);
     $('<button type="button" class="button">Duplizieren</button>').on('click', function(){ duplicateElement(idx); }).appendTo(actions);
     $('<button type="button" class="button button-link-delete">'+('Löschen')+'</button>').on('click', function(){
       settings.elements.splice(idx,1);
@@ -324,8 +326,8 @@
       const optCard = $('<div class="schmitke-card schmitke-option-card"></div>');
       const optHead = $('<div class="schmitke-model-head"></div>').appendTo(optCard);
       $('<strong class="schmitke-card-title"></strong>').text(opt.option_code || 'Option').appendTo(optHead);
-      $('<button type="button" class="button">'+('⬆')+'</button>').on('click', function(){ moveOption(optKey, optIdx, -1); }).appendTo(optHead);
-      $('<button type="button" class="button">'+('⬇')+'</button>').on('click', function(){ moveOption(optKey, optIdx, 1); }).appendTo(optHead);
+      $('<button type="button" class="button">Nach oben</button>').on('click', function(){ moveOption(optKey, optIdx, -1); }).appendTo(optHead);
+      $('<button type="button" class="button">Nach unten</button>').on('click', function(){ moveOption(optKey, optIdx, 1); }).appendTo(optHead);
       $('<button type="button" class="button button-link-delete">'+('Löschen')+'</button>').on('click', function(){
         options.splice(optIdx,1);
         updateOptionOrders(optKey);
