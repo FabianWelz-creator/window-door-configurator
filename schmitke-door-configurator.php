@@ -37,8 +37,10 @@ class Schmitke_Windows_Configurator {
     }
 
     public function register_assets() {
-        wp_register_style('schmitke-windows-configurator', plugins_url('public/configurator.css', __FILE__), [], '0.2.1');
-        wp_register_script('schmitke-windows-configurator', plugins_url('public/configurator-windows.js', __FILE__), [], '0.2.1', true);
+        $publicCssVersion = file_exists(plugin_dir_path(__FILE__) . 'public/configurator.css') ? (string) filemtime(plugin_dir_path(__FILE__) . 'public/configurator.css') : '0.2.1';
+        $publicJsVersion = file_exists(plugin_dir_path(__FILE__) . 'public/configurator-windows.js') ? (string) filemtime(plugin_dir_path(__FILE__) . 'public/configurator-windows.js') : '0.2.1';
+        wp_register_style('schmitke-windows-configurator', plugins_url('public/configurator.css', __FILE__), [], $publicCssVersion);
+        wp_register_script('schmitke-windows-configurator', plugins_url('public/configurator-windows.js', __FILE__), [], $publicJsVersion, true);
 
         $settings = Schmitke_Configurator_Settings_V2::get_settings();
         if (!empty($settings['options_by_element']) && is_array($settings['options_by_element'])) {
@@ -91,12 +93,14 @@ class Schmitke_Windows_Configurator {
     public function admin_assets($hook) {
         if ($hook !== 'settings_page_schmitke-windows-configurator') return;
         wp_enqueue_media();
-        wp_enqueue_style('schmitke-configurator-admin', plugins_url('admin/admin.css', __FILE__), [], '0.2.1');
+        $adminCssVersion = file_exists(plugin_dir_path(__FILE__) . 'admin/admin.css') ? (string) filemtime(plugin_dir_path(__FILE__) . 'admin/admin.css') : '0.2.1';
+        $adminJsVersion = file_exists(plugin_dir_path(__FILE__) . 'admin/configurator-v2.js') ? (string) filemtime(plugin_dir_path(__FILE__) . 'admin/configurator-v2.js') : '0.2.1';
+        wp_enqueue_style('schmitke-configurator-admin', plugins_url('admin/admin.css', __FILE__), [], $adminCssVersion);
         wp_enqueue_script(
             'schmitke-configurator-v2-admin',
             plugins_url('admin/configurator-v2.js', __FILE__),
             ['jquery', 'jquery-ui-sortable', 'wp-util'],
-            '0.2.1',
+            $adminJsVersion,
             true
         );
         wp_localize_script('schmitke-configurator-v2-admin', 'SCHMITKE_CONFIG_V2_ADMIN', [
