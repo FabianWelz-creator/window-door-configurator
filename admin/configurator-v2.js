@@ -627,17 +627,51 @@
       $('<label>Elemente verstecken (Keys, Komma)</label>').append($('<input type="text">').val((rule.then.hide_elements||[]).join(',')).on('input', function(){ rule.then.hide_elements = splitList($(this).val()); })).appendTo(actions);
       $('<label>Pflicht setzen (Keys, Komma)</label>').append($('<input type="text">').val((rule.then.set_required||[]).join(',')).on('input', function(){ rule.then.set_required = splitList($(this).val()); })).appendTo(actions);
       $('<label>Pflicht entfernen (Keys, Komma)</label>').append($('<input type="text">').val((rule.then.unset_required||[]).join(',')).on('input', function(){ rule.then.unset_required = splitList($(this).val()); })).appendTo(actions);
-      $('<label>filter_options (JSON)</label>').append($('<textarea rows="2"></textarea>').val(JSON.stringify(rule.then.filter_options||[])).on('change', function(){
-        try { rule.then.filter_options = JSON.parse($(this).val()) || []; } catch(e){ /* ignore */ }
-      })).appendTo(actions);
-      $('<label>disable_options (JSON)</label>').append($('<textarea rows="2"></textarea>').val(JSON.stringify(rule.then.disable_options||[])).on('change', function(){
-        try { rule.then.disable_options = JSON.parse($(this).val()) || []; } catch(e){ /* ignore */ }
-      })).appendTo(actions);
+      const filterLabel = $('<label>filter_options (JSON)</label>').appendTo(actions);
+      const filterTextarea = $('<textarea rows="2"></textarea>').val(JSON.stringify(rule.then.filter_options||[])).appendTo(filterLabel);
+      bindJsonTextarea(filterTextarea, function(parsed){
+        rule.then.filter_options = parsed;
+      });
+      const disableLabel = $('<label>disable_options (JSON)</label>').appendTo(actions);
+      const disableTextarea = $('<textarea rows="2"></textarea>').val(JSON.stringify(rule.then.disable_options||[])).appendTo(disableLabel);
+      bindJsonTextarea(disableTextarea, function(parsed){
+        rule.then.disable_options = parsed;
+      });
     });
   }
 
   function splitList(val){
     return (val||'').split(',').map(v=>v.trim()).filter(Boolean);
+  }
+
+  function bindJsonTextarea(textarea, onValidJson){
+    if(!textarea || !textarea.length) return;
+    const hint = $('<div class="schmitke-json-hint" aria-live="polite"></div>');
+    textarea.after(hint);
+    const parseNow = function(){
+      const raw = (textarea.val() || '').trim();
+      if(!raw){
+        onValidJson([]);
+        textarea.removeClass('is-invalid');
+        hint.text('');
+        syncInputs();
+        return;
+      }
+      try{
+        const parsed = JSON.parse(raw);
+        if(!Array.isArray(parsed)){
+          throw new Error('expected-array');
+        }
+        onValidJson(parsed);
+        textarea.removeClass('is-invalid');
+        hint.text('');
+        syncInputs();
+      }catch(e){
+        textarea.addClass('is-invalid');
+        hint.text('Ungültiges JSON (erwartet: Array, z. B. [{"element_key":"form","allowed":["rechteckig"]}]).');
+      }
+    };
+    textarea.on('input blur change', parseNow);
   }
 
   function updateOptionOrders(elementKey){
