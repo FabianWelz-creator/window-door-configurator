@@ -78,8 +78,146 @@ Alle neuen UI-Elemente, Optionen und Abhängigkeiten werden unter dem WordPress-
 - Aktionen erlauben `show_elements`, `hide_elements`, `filter_options`, `disable_options` (mit DE/EN Begründung), `set_required`, `unset_required`.
 - Die Reihenfolge wird über `priority` gesteuert; niedrigere Werte laufen zuerst.
 
+### Praxisbeispiel: Produktspezifische Einschränkungen
+
+Die gewünschten Regeln sind mit dem aktuellen Regelmodell umsetzbar (über `filter_options`).
+Voraussetzung ist, dass es passende Elemente und Option-Codes gibt, z. B.:
+
+- Element `typ` mit Optionen: `psk_fenster`, `hst`, `terrassentuer`
+- Element `form` mit Option: `rechteckig`
+- Element `fluegelzahl` mit Optionen: `zweiflueglig`, `dreiflueglig`
+- Element `profil` mit Option: `veka_gw_500`
+
+Beispiel-Regeln:
+
+```jsonc
+{
+  "rules": [
+    {
+      "id": "rule_psk_fenster",
+      "name": "PSK Fenster nur rechteckig + 2/3-flüglig",
+      "priority": 10,
+      "when": {
+        "type": "and",
+        "conditions": [
+          { "element_key": "typ", "operator": "equals", "value": "psk_fenster" }
+        ]
+      },
+      "then": {
+        "filter_options": [
+          { "element_key": "form", "allowed": ["rechteckig"] },
+          { "element_key": "fluegelzahl", "allowed": ["zweiflueglig", "dreiflueglig"] }
+        ]
+      }
+    },
+    {
+      "id": "rule_hst",
+      "name": "HST nur VEKA GW 500 + rechteckig + 2/3-flüglig",
+      "priority": 20,
+      "when": {
+        "type": "and",
+        "conditions": [
+          { "element_key": "typ", "operator": "equals", "value": "hst" }
+        ]
+      },
+      "then": {
+        "filter_options": [
+          { "element_key": "profil", "allowed": ["veka_gw_500"] },
+          { "element_key": "form", "allowed": ["rechteckig"] },
+          { "element_key": "fluegelzahl", "allowed": ["zweiflueglig", "dreiflueglig"] }
+        ]
+      }
+    },
+    {
+      "id": "rule_terrassentuer",
+      "name": "Terrassentür nur rechteckig",
+      "priority": 30,
+      "when": {
+        "type": "and",
+        "conditions": [
+          { "element_key": "typ", "operator": "equals", "value": "terrassentuer" }
+        ]
+      },
+      "then": {
+        "filter_options": [
+          { "element_key": "form", "allowed": ["rechteckig"] }
+        ]
+      }
+    }
+  ]
+}
+```
+
+Hinweise:
+- Die Option-Codes in `allowed` müssen exakt zu den Codes in `options_by_element` passen.
+- `filter_options` blendet nicht erlaubte Optionen aus; bestehende, ungültige Auswahlwerte werden im Frontend automatisch entfernt.
+- Falls im Admin bereits andere Regeln auf dasselbe Element filtern, wird die Schnittmenge (Intersection) der erlaubten Optionen verwendet.
+
+### Dieselben Regeln direkt in der GUI eingeben (ohne JSON-Fallback)
+
+Wenn du die Regeln im Admin-Formular (Regel-Card) einträgst, sind für deinen Fall fast nur diese Felder wichtig:
+
+- `ID`
+- `Name`
+- `Priorität`
+- `Bedingungen` (bei dir jeweils nur 1 Bedingung: `Typ equals ...`)
+- `filter_options (JSON)`
+
+Die Felder `Elemente zeigen`, `Elemente verstecken`, `Pflicht setzen`, `Pflicht entfernen`, `disable_options (JSON)` können leer bleiben.
+
+#### 1) Regel „PSK Fenster nur rechteckig + 2/3-flüglig“
+
+- **ID**: `rule_psk_fenster`
+- **Name**: `PSK Fenster nur rechteckig + 2/3-flüglig`
+- **Priorität**: `10`
+- **Bedingung**:
+  - Element: `typ`
+  - Operator: `equals`
+  - Wert: `psk_fenster`
+- **filter_options (JSON)**:
+
+```json
+[{"element_key":"form","allowed":["rechteckig"]},{"element_key":"fluegelzahl","allowed":["zweiflueglig","dreiflueglig"]}]
+```
+
+#### 2) Regel „HST nur VEKA GW 500 + rechteckig + 2/3-flüglig“
+
+- **ID**: `rule_hst`
+- **Name**: `HST nur VEKA GW 500 + rechteckig + 2/3-flüglig`
+- **Priorität**: `20`
+- **Bedingung**:
+  - Element: `typ`
+  - Operator: `equals`
+  - Wert: `hst`
+- **filter_options (JSON)**:
+
+```json
+[{"element_key":"profil","allowed":["veka_gw_500"]},{"element_key":"form","allowed":["rechteckig"]},{"element_key":"fluegelzahl","allowed":["zweiflueglig","dreiflueglig"]}]
+```
+
+#### 3) Regel „Terrassentür nur rechteckig“
+
+- **ID**: `rule_terrassentuer`
+- **Name**: `Terrassentür nur rechteckig`
+- **Priorität**: `30`
+- **Bedingung**:
+  - Element: `typ`
+  - Operator: `equals`
+  - Wert: `terrassentuer`
+- **filter_options (JSON)**:
+
+```json
+[{"element_key":"form","allowed":["rechteckig"]}]
+```
+
+#### Typische Fehler (wichtig)
+
+- In `filter_options (JSON)` sind nur gültige JSON-Arrays erlaubt (mit `[` und `]`).
+- `element_key` und Codes in `allowed` müssen exakt so heißen wie in deinen Optionen (z. B. `fluegelzahl` ≠ `flügelzahl`).
+- Falls eine Option nicht auftaucht, zuerst prüfen, ob sie beim betroffenen Element wirklich mit exakt diesem Code existiert.
+- Im Admin wird ungültiges JSON jetzt direkt rot markiert; erst bei gültigem JSON wird die Regel korrekt gespeichert.
+
 ## UI-Defaults
 - `sticky_summary_enabled`: aktiviert die Sticky-Summary im Desktop-Layout.
 - `accordion_enabled`: erlaubt einklappbare Elemente; Startzustand pro Element über `accordion_default_open`.
 - `locale_mode: wp_locale`: nutzt automatisch die WordPress-Lokalisierung (DE/EN Labels/Infos).
-
