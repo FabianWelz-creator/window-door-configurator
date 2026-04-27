@@ -779,43 +779,55 @@
     const row = $('<label class="schmitke-action-field"></label>').appendTo(container);
     createActionLabel(label, helpText).appendTo(row);
     const select = $('<select multiple size="5" class="schmitke-multi-select"></select>').appendTo(row);
+    const items = [];
     settings.elements.forEach(function(el){
       if(!el.element_key) return;
       const option = $('<option></option>').val(el.element_key).text(getElementLabel(el) + ' (' + el.element_key + ')');
       select.append(option);
+      items.push({ value: el.element_key, label: getElementLabel(el) + ' (' + el.element_key + ')' });
     });
 
     const selectedValues = new Set((target[key] || []).filter(Boolean));
     select.val(Array.from(selectedValues));
-    const helper = $('<div class="schmitke-multi-checkboxes"></div>').appendTo(row);
+    renderSelectableList(row, {
+      items: items,
+      selected: selectedValues,
+      emptyText: 'Keine Elemente verfügbar.',
+      onChange: function(next){
+        target[key] = next;
+        select.val(next);
+      }
+    });
+  }
 
-    settings.elements.forEach(function(el){
-      if(!el.element_key) return;
-      const elementKey = el.element_key;
-      const checkLabel = $('<label class="schmitke-multi-checkbox"></label>').appendTo(helper);
-      const checkbox = $('<input type="checkbox">').val(elementKey).appendTo(checkLabel);
-      checkbox.prop('checked', selectedValues.has(elementKey));
-      $('<span></span>').text(getElementLabel(el) + ' (' + elementKey + ')').appendTo(checkLabel);
-
-      checkbox.on('change', function(){
-        if($(this).is(':checked')){
-          selectedValues.add(elementKey);
+  function renderSelectableList(container, config){
+    const wrap = $('<div class="schmitke-selectable-list" role="listbox" aria-multiselectable="true"></div>').appendTo(container);
+    const items = config.items || [];
+    const selected = config.selected || new Set();
+    if(!items.length){
+      $('<div class="schmitke-selectable-empty"></div>').text(config.emptyText || 'Keine Einträge verfügbar.').appendTo(wrap);
+      return wrap;
+    }
+    const onChange = typeof config.onChange === 'function' ? config.onChange : function(){};
+    items.forEach(function(item){
+      const value = item.value;
+      const button = $('<button type="button" class="schmitke-selectable-item"></button>')
+        .attr('aria-pressed', selected.has(value) ? 'true' : 'false')
+        .toggleClass('is-selected', selected.has(value))
+        .text(item.label || value)
+        .appendTo(wrap);
+      button.on('click', function(){
+        if(selected.has(value)){
+          selected.delete(value);
         } else {
-          selectedValues.delete(elementKey);
+          selected.add(value);
         }
-        target[key] = Array.from(selectedValues);
-        select.val(target[key]);
+        const isSelected = selected.has(value);
+        button.toggleClass('is-selected', isSelected).attr('aria-pressed', isSelected ? 'true' : 'false');
+        onChange(Array.from(selected));
       });
     });
-
-    select.on('change', function(){
-      const current = new Set((($(this).val()) || []).filter(Boolean));
-      target[key] = Array.from(current);
-      helper.find('input[type="checkbox"]').each(function(){
-        const val = $(this).val();
-        $(this).prop('checked', current.has(val));
-      });
-    });
+    return wrap;
   }
 
   function renderConditionValueInput(row, cond){
@@ -885,14 +897,21 @@
         entry.allowed = [];
         render();
       });
-      const allowedSelect = $('<select multiple size="4"></select>').appendTo(row);
-      getElementOptions(entry.element_key).forEach(function(opt){
-        if(!opt.option_code) return;
-        const lbl = (opt.labels && opt.labels.de) ? opt.labels.de : opt.option_code;
-        allowedSelect.append('<option value="'+opt.option_code+'">'+lbl+' ('+opt.option_code+')</option>');
+      const optionWrap = $('<div class="schmitke-option-select-wrap"></div>').appendTo(row);
+      const options = getElementOptions(entry.element_key)
+        .filter(function(opt){ return !!opt.option_code; })
+        .map(function(opt){
+          const lbl = (opt.labels && opt.labels.de) ? opt.labels.de : opt.option_code;
+          return { value: opt.option_code, label: lbl + ' (' + opt.option_code + ')' };
+        });
+      renderSelectableList(optionWrap, {
+        items: options,
+        selected: new Set(Array.isArray(entry.allowed) ? entry.allowed : []),
+        emptyText: entry.element_key ? 'Keine Optionen für dieses Element.' : 'Bitte zuerst ein Ziel-Element wählen.',
+        onChange: function(next){
+          entry.allowed = next;
+        }
       });
-      allowedSelect.val(Array.isArray(entry.allowed) ? entry.allowed : []);
-      allowedSelect.on('change', function(){ entry.allowed = $(this).val() || []; });
       $('<button type="button" class="button-link-delete">Entfernen</button>').on('click', function(){
         rule.then.filter_options.splice(idx,1);
         render();
@@ -922,14 +941,21 @@
         entry.codes = [];
         render();
       });
-      const disableSelect = $('<select multiple size="4"></select>').appendTo(row);
-      getElementOptions(entry.element_key).forEach(function(opt){
-        if(!opt.option_code) return;
-        const lbl = (opt.labels && opt.labels.de) ? opt.labels.de : opt.option_code;
-        disableSelect.append('<option value="'+opt.option_code+'">'+lbl+' ('+opt.option_code+')</option>');
+      const optionWrap = $('<div class="schmitke-option-select-wrap"></div>').appendTo(row);
+      const options = getElementOptions(entry.element_key)
+        .filter(function(opt){ return !!opt.option_code; })
+        .map(function(opt){
+          const lbl = (opt.labels && opt.labels.de) ? opt.labels.de : opt.option_code;
+          return { value: opt.option_code, label: lbl + ' (' + opt.option_code + ')' };
+        });
+      renderSelectableList(optionWrap, {
+        items: options,
+        selected: new Set(Array.isArray(entry.codes) ? entry.codes : []),
+        emptyText: entry.element_key ? 'Keine Optionen für dieses Element.' : 'Bitte zuerst ein Ziel-Element wählen.',
+        onChange: function(next){
+          entry.codes = next;
+        }
       });
-      disableSelect.val(Array.isArray(entry.codes) ? entry.codes : []);
-      disableSelect.on('change', function(){ entry.codes = $(this).val() || []; });
       const reasonWrap = $('<div class="schmitke-disable-reason"></div>').appendTo(row);
       $('<input type="text" placeholder="Grund DE">').val(entry.reason.de || '').on('input', function(){ entry.reason.de = $(this).val(); }).appendTo(reasonWrap);
       $('<input type="text" placeholder="Reason EN">').val(entry.reason.en || '').on('input', function(){ entry.reason.en = $(this).val(); }).appendTo(reasonWrap);
