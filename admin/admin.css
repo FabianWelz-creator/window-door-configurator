@@ -11,6 +11,8 @@
 .schmitke-model-actions{display:flex;gap:6px}
 .schmitke-model-body{display:none;padding:12px}
 .schmitke-card.open .schmitke-model-body,.schmitke-model-card.open .schmitke-model-body{display:block}
+.schmitke-rule-body{display:none}
+.schmitke-rule-card.open .schmitke-rule-body{display:block}
 .schmitke-model-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:10px}
 .schmitke-image-field{grid-column:1/-1}
 .schmitke-image-row{display:flex;align-items:center;gap:12px;margin-top:6px}
@@ -32,6 +34,17 @@
 .schmitke-action-builder{border:1px solid #e2e2e2;border-radius:8px;padding:10px;background:#fff;display:flex;flex-direction:column;gap:8px}
 .schmitke-field-label{font-size:12px;color:#555}
 .schmitke-disable-reason{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.schmitke-inline-title,.schmitke-action-title{display:inline-flex;align-items:center;gap:6px}
+.schmitke-help{position:relative;display:inline-flex;align-items:center}
+.schmitke-help-btn{width:18px;height:18px;border-radius:999px;border:1px solid #c6ced6;background:#fff;color:#1d2327;font-size:11px;font-weight:700;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.schmitke-help-btn:hover,.schmitke-help-btn:focus-visible{border-color:#2271b1;color:#2271b1;outline:none}
+.schmitke-help-tip{position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);min-width:220px;max-width:320px;background:#1d2327;color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:400;line-height:1.4;box-shadow:0 8px 20px rgba(0,0,0,.18);opacity:0;visibility:hidden;pointer-events:none;z-index:40}
+.schmitke-help:hover .schmitke-help-tip,.schmitke-help:focus-within .schmitke-help-tip,.schmitke-help.is-open .schmitke-help-tip{opacity:1;visibility:visible}
+.schmitke-toggle-preview{border-top:1px solid #e6e6e6;margin-top:10px;padding-top:10px}
+.schmitke-toggle-preview-row{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.schmitke-preview-cell{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:82px}
+.schmitke-preview-btn{width:44px;height:34px;border:1px solid #111;background:#111;color:#fff;font-size:20px;font-weight:700;cursor:default;display:inline-flex;align-items:center;justify-content:center}
+.schmitke-preview-label{font-size:12px;color:#555}
 @media(max-width:900px){
   .schmitke-design-grid{grid-template-columns:1fr 1fr}
   .schmitke-model-grid{grid-template-columns:1fr}

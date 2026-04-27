@@ -24,6 +24,8 @@
   if(d.accordionToggleIcon) style.setProperty('--scc-toggle-icon', d.accordionToggleIcon);
   if(d.accordionToggleBgHover) style.setProperty('--scc-toggle-bg-hover', d.accordionToggleBgHover);
   if(d.accordionToggleIconHover) style.setProperty('--scc-toggle-icon-hover', d.accordionToggleIconHover);
+  if(d.accordionToggleBgOpen) style.setProperty('--scc-toggle-bg-open', d.accordionToggleBgOpen);
+  if(d.accordionToggleIconOpen) style.setProperty('--scc-toggle-icon-open', d.accordionToggleIconOpen);
   if(d.fontFamily)   style.setProperty('--scc-font', d.fontFamily);
   if(typeof d.buttonRadius !== 'undefined') style.setProperty('--scc-btn-radius', d.buttonRadius+'px');
   if(typeof d.cardRadius !== 'undefined') style.setProperty('--scc-card-radius', d.cardRadius+'px');
@@ -289,17 +291,32 @@
         } else if(el.type === 'upload'){
           const label = document.createElement('label');
           label.textContent = getMeasurementLabel('upload', 'Upload');
+          const control = document.createElement('div');
+          control.className = 'scc-upload-control';
+          const buttonLabel = document.createElement('label');
+          buttonLabel.className = 'scc-upload-btn';
+          buttonLabel.textContent = 'Datei auswählen';
           const input = document.createElement('input');
           input.type = 'file';
           input.accept = 'image/*';
+          input.className = 'scc-upload-input';
+          const filename = document.createElement('span');
+          filename.className = 'scc-upload-filename';
+          filename.textContent = 'Noch keine Datei ausgewählt';
+          const uploadState = state.selections[elementKey] || {};
+          if(uploadState.filename){
+            filename.textContent = uploadState.filename;
+          }
           input.addEventListener('change', function(){
             const file = input.files && input.files[0];
             const current = state.selections[elementKey] || {};
             if(!file){
+              filename.textContent = 'Noch keine Datei ausgewählt';
               state.selections[elementKey] = Object.assign({}, current, { filename: '', dataUrl: '' });
               renderSummary();
               return;
             }
+            filename.textContent = file.name;
             const reader = new FileReader();
             reader.onload = function(){
               state.selections[elementKey] = Object.assign({}, current, { filename: file.name, dataUrl: reader.result || '' });
@@ -307,17 +324,19 @@
             };
             reader.readAsDataURL(file);
           });
-          label.appendChild(input);
+          buttonLabel.appendChild(input);
+          control.appendChild(buttonLabel);
+          control.appendChild(filename);
           const note = document.createElement('textarea');
           note.rows = 2;
           note.placeholder = getMeasurementLabel('note', 'Notiz');
-          const uploadState = state.selections[elementKey] || {};
           note.value = uploadState.note || '';
           note.addEventListener('input', function(){
             state.selections[elementKey] = Object.assign({}, state.selections[elementKey] || {}, {note: note.value});
             renderSummary();
           });
           body.appendChild(label);
+          body.appendChild(control);
           body.appendChild(note);
         } else {
           const allowedSet = ruleEffects.filters.get(elementKey);

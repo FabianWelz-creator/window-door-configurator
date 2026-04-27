@@ -18,6 +18,16 @@
     }
     $(this).text(isOpen ? 'Schließen' : 'Öffnen');
   });
+  app.on('click', '.schmitke-rule-toggle', function(){
+    const card = $(this).closest('.schmitke-rule-card');
+    if(!card.length) return;
+    const uid = card.data('uid');
+    const isOpen = card.toggleClass('open').hasClass('open');
+    if(uid){
+      ruleOpenState.set(uid, isOpen);
+    }
+    $(this).text(isOpen ? 'Zuklappen' : 'Bearbeiten');
+  });
 
   function defaultDesign(){
     return {
@@ -29,6 +39,8 @@
       accordionToggleIcon: '#ffffff',
       accordionToggleBgHover: '#000000',
       accordionToggleIconHover: '#ffffff',
+      accordionToggleBgOpen: '#1f6feb',
+      accordionToggleIconOpen: '#ffffff',
       fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
       buttonRadius: 10,
       cardRadius: 14
@@ -61,6 +73,7 @@
   };
   let settings = $.extend(true, {}, defaults, data.settings || {});
   const elementOpenState = new Map();
+  const ruleOpenState = new Map();
 
   function captureElementOpenState(){
     app.find('.v2-element').each(function(){
@@ -104,6 +117,7 @@
     });
     settings.options_by_element = mappedOptions;
     settings.rules = (settings.rules || []).map(function(rule){
+      if(!rule.__uid) rule.__uid = generateUid();
       rule.when = rule.when || {conditions: []};
       rule.then = rule.then || {show_elements: [], hide_elements: [], filter_options: [], disable_options: [], set_required: [], unset_required: []};
       return rule;
@@ -390,7 +404,10 @@
       $('<label>'+label+'<input type="text" class="schmitke-color"></label>')
         .find('input')
         .val(settings.design[key] || '')
-        .on('input change', function(){ settings.design[key] = $(this).val(); })
+        .on('input change', function(){
+          settings.design[key] = $(this).val();
+          updateTogglePreview();
+        })
         .end()
         .appendTo(grid);
     };
@@ -403,6 +420,8 @@
     addColor('Accordion Toggle Icon', 'accordionToggleIcon');
     addColor('Accordion Toggle BG Hover', 'accordionToggleBgHover');
     addColor('Accordion Toggle Icon Hover', 'accordionToggleIconHover');
+    addColor('Accordion Toggle BG Open', 'accordionToggleBgOpen');
+    addColor('Accordion Toggle Icon Open', 'accordionToggleIconOpen');
 
     $('<label>Font Family <input type="text"></label>')
       .find('input')
@@ -413,6 +432,31 @@
 
     addNumber(grid, 'buttonRadius', settings.design, 'Button Radius (px)', 0, 40);
     addNumber(grid, 'cardRadius', settings.design, 'Card Radius (px)', 0, 40);
+
+    const preview = $('<div class="schmitke-toggle-preview"></div>').appendTo(body);
+    $('<strong>Vorschau Accordion-Button</strong>').appendTo(preview);
+    const row = $('<div class="schmitke-toggle-preview-row"></div>').appendTo(preview);
+    const normal = $('<button type="button" class="schmitke-preview-btn"><span>⌄</span></button>').appendTo(row);
+    const hover = $('<button type="button" class="schmitke-preview-btn"><span>⌄</span></button>').appendTo(row);
+    const open = $('<button type="button" class="schmitke-preview-btn"><span>⌃</span></button>').appendTo(row);
+    $('<span class="schmitke-preview-label">Normal</span>').appendTo($('<div class="schmitke-preview-cell"></div>').append(normal).appendTo(row));
+    $('<span class="schmitke-preview-label">Hover</span>').appendTo($('<div class="schmitke-preview-cell"></div>').append(hover).appendTo(row));
+    $('<span class="schmitke-preview-label">Offen</span>').appendTo($('<div class="schmitke-preview-cell"></div>').append(open).appendTo(row));
+
+    function applyPreviewStyle(button, bg, icon){
+      button.css({
+        backgroundColor: bg || '#111111',
+        borderColor: bg || '#111111',
+        color: icon || '#ffffff',
+        borderRadius: (Number(settings.design.buttonRadius) || 10) + 'px'
+      });
+    }
+    function updateTogglePreview(){
+      applyPreviewStyle(normal, settings.design.accordionToggleBg, settings.design.accordionToggleIcon);
+      applyPreviewStyle(hover, settings.design.accordionToggleBgHover, settings.design.accordionToggleIconHover);
+      applyPreviewStyle(open, settings.design.accordionToggleBgOpen, settings.design.accordionToggleIconOpen);
+    }
+    updateTogglePreview();
 
     return card;
   }
@@ -588,28 +632,67 @@
     render();
   }
 
+  function infoTexts(){
+    return {
+      rule: 'Regeln steuern, was im Konfigurator sichtbar oder verpflichtend ist. Beispiel: Wenn "Material = Holz", dann wird "Lackierung" angezeigt.',
+      when: 'Bedingungen bestimmen, wann eine Regel greift. Beispiel: Wenn "Türtyp = Haustür", wird die Regel ausgelöst.',
+      then: 'Aktionen passieren nur, wenn die Bedingungen erfüllt sind. Beispiel: Ein Element wird eingeblendet oder als Pflichtfeld markiert.',
+      show_elements: 'Zeigt ausgewählte Elemente an. Beispiel in der Oberfläche: Der Abschnitt "Seitenteil" wird sichtbar.',
+      hide_elements: 'Versteckt ausgewählte Elemente. Beispiel in der Oberfläche: Der Abschnitt "Glasausschnitt" wird ausgeblendet.',
+      set_required: 'Markiert Felder als Pflicht. Beispiel in der Oberfläche: Das Feld erhält den Pflicht-Hinweis und muss ausgefüllt werden.',
+      unset_required: 'Entfernt die Pflicht-Markierung. Beispiel in der Oberfläche: Das Feld kann leer bleiben.',
+      filter_options: 'Begrenzt die Auswahl auf erlaubte Optionen. Beispiel in der Oberfläche: Bei "Farbe" werden nur "Weiß" und "Anthrazit" angezeigt.',
+      disable_options: 'Deaktiviert ausgewählte Optionen mit Hinweistext. Beispiel in der Oberfläche: Option ist ausgegraut und zeigt den Grund beim Hover.'
+    };
+  }
+
+  function appendInfoIcon(target, text){
+    if(!text) return;
+    const wrap = $('<span class="schmitke-help"></span>').appendTo(target);
+    const btn = $('<button type="button" class="schmitke-help-btn" aria-label="Info öffnen">i</button>').appendTo(wrap);
+    const tip = $('<span class="schmitke-help-tip"></span>').text(text).appendTo(wrap);
+    btn.on('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      wrap.toggleClass('is-open');
+    });
+  }
+
+  function createActionLabel(label, helpText){
+    const title = $('<span class="schmitke-action-title"></span>').text(label);
+    appendInfoIcon(title, helpText);
+    return title;
+  }
+
   function renderRules(container){
     container.empty();
+    const info = infoTexts();
     const header = $('<div class="schmitke-model-head"></div>').appendTo(container);
-    $('<strong>Regeln</strong>').appendTo(header);
+    const title = $('<strong class="schmitke-inline-title">Regeln</strong>').appendTo(header);
+    appendInfoIcon(title, info.rule);
     $('<button type="button" class="button">+ Regel</button>').on('click', function(){
       settings.rules.push({id:'', name:'', priority:0, when:{conditions:[]}, then:{show_elements:[], hide_elements:[], filter_options:[], disable_options:[], set_required:[], unset_required:[]}});
       render();
     }).appendTo(header);
 
     settings.rules.forEach((rule, idx)=>{
-      const card=$('<div class="schmitke-card schmitke-rule-card"></div>').appendTo(container);
+      const isOpen = ruleOpenState.has(rule.__uid) ? ruleOpenState.get(rule.__uid) : false;
+      const card=$('<div class="schmitke-card schmitke-rule-card"></div>').toggleClass('open', isOpen).attr('data-uid', rule.__uid).appendTo(container);
       const head=$('<div class="schmitke-model-head"></div>').appendTo(card);
       $('<strong></strong>').text(rule.name || 'Regel '+(idx+1)).appendTo(head);
-      $('<button type="button" class="button button-link-delete">Löschen</button>').on('click', function(){ settings.rules.splice(idx,1); render(); }).appendTo(head);
+      const headActions = $('<div class="schmitke-model-actions"></div>').appendTo(head);
+      $('<button type="button" class="button button-small schmitke-rule-toggle"></button>').text(isOpen ? 'Zuklappen' : 'Bearbeiten').appendTo(headActions);
+      $('<button type="button" class="button button-link-delete">Löschen</button>').on('click', function(){ settings.rules.splice(idx,1); render(); }).appendTo(headActions);
 
-      const grid=$('<div class="schmitke-model-grid"></div>').appendTo(card);
+      const ruleBody = $('<div class="schmitke-rule-body"></div>').appendTo(card);
+      const grid=$('<div class="schmitke-model-grid"></div>').appendTo(ruleBody);
       $('<label>ID <input type="text"></label>').find('input').val(rule.id||'').on('input', function(){ rule.id=$(this).val(); }).end().appendTo(grid);
       $('<label>Name <input type="text"></label>').find('input').val(rule.name||'').on('input', function(){ rule.name=$(this).val(); }).end().appendTo(grid);
       addNumber(grid, 'priority', rule, 'Priorität');
 
-      const condWrap=$('<div class="schmitke-conditions"></div>').appendTo(card);
-      $('<strong>Bedingungen (WHEN)</strong>').appendTo(condWrap);
+      const condWrap=$('<div class="schmitke-conditions"></div>').appendTo(ruleBody);
+      const whenTitle = $('<strong class="schmitke-inline-title">Bedingungen (WHEN)</strong>').appendTo(condWrap);
+      appendInfoIcon(whenTitle, info.when);
       $('<button type="button" class="button">+ Bedingung</button>').on('click', function(){
         rule.when.conditions.push({element_key:'', operator:'equals', value:''});
         render();
@@ -634,14 +717,15 @@
         $('<button type="button" class="button-link-delete">×</button>').on('click', function(){ rule.when.conditions.splice(cIdx,1); render(); }).appendTo(row);
       });
 
-      const actions=$('<div class="schmitke-actions"></div>').appendTo(card);
-      $('<strong>Aktionen (THEN)</strong>').appendTo(actions);
-      renderElementMultiSelect(actions, 'Elemente zeigen', rule.then, 'show_elements');
-      renderElementMultiSelect(actions, 'Elemente verstecken', rule.then, 'hide_elements');
-      renderElementMultiSelect(actions, 'Pflicht setzen', rule.then, 'set_required');
-      renderElementMultiSelect(actions, 'Pflicht entfernen', rule.then, 'unset_required');
-      renderFilterActions(actions, rule);
-      renderDisableActions(actions, rule);
+      const actions=$('<div class="schmitke-actions"></div>').appendTo(ruleBody);
+      const thenTitle = $('<strong class="schmitke-inline-title">Aktionen (THEN)</strong>').appendTo(actions);
+      appendInfoIcon(thenTitle, info.then);
+      renderElementMultiSelect(actions, 'Elemente zeigen', rule.then, 'show_elements', info.show_elements);
+      renderElementMultiSelect(actions, 'Elemente verstecken', rule.then, 'hide_elements', info.hide_elements);
+      renderElementMultiSelect(actions, 'Pflicht setzen', rule.then, 'set_required', info.set_required);
+      renderElementMultiSelect(actions, 'Pflicht entfernen', rule.then, 'unset_required', info.unset_required);
+      renderFilterActions(actions, rule, info.filter_options);
+      renderDisableActions(actions, rule, info.disable_options);
     });
   }
 
@@ -658,9 +742,9 @@
     return source.slice();
   }
 
-  function renderElementMultiSelect(container, label, target, key){
+  function renderElementMultiSelect(container, label, target, key, helpText){
     const row = $('<label class="schmitke-action-field"></label>').appendTo(container);
-    $('<span>'+label+'</span>').appendTo(row);
+    createActionLabel(label, helpText).appendTo(row);
     const select = $('<select multiple size="5"></select>').appendTo(row);
     settings.elements.forEach(function(el){
       if(!el.element_key) return;
@@ -719,9 +803,10 @@
       .appendTo(row);
   }
 
-  function renderFilterActions(container, rule){
+  function renderFilterActions(container, rule, helpText){
     const wrap = $('<div class="schmitke-action-builder"></div>').appendTo(container);
-    $('<strong>Optionen filtern</strong>').appendTo(wrap);
+    const title = $('<strong class="schmitke-inline-title">Optionen filtern</strong>').appendTo(wrap);
+    appendInfoIcon(title, helpText);
     $('<button type="button" class="button">+ Filter hinzufügen</button>').on('click', function(){
       rule.then.filter_options = rule.then.filter_options || [];
       rule.then.filter_options.push({element_key:'', allowed:[]});
@@ -754,9 +839,10 @@
     });
   }
 
-  function renderDisableActions(container, rule){
+  function renderDisableActions(container, rule, helpText){
     const wrap = $('<div class="schmitke-action-builder"></div>').appendTo(container);
-    $('<strong>Optionen deaktivieren</strong>').appendTo(wrap);
+    const title = $('<strong class="schmitke-inline-title">Optionen deaktivieren</strong>').appendTo(wrap);
+    appendInfoIcon(title, helpText);
     $('<button type="button" class="button">+ Deaktivierung hinzufügen</button>').on('click', function(){
       rule.then.disable_options = rule.then.disable_options || [];
       rule.then.disable_options.push({element_key:'', codes:[], reason:{de:'', en:''}});
