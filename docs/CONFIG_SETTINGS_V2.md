@@ -6,6 +6,19 @@ Alle neuen UI-Elemente, Optionen und Abhängigkeiten werden unter dem WordPress-
 
 ```jsonc
 {
+  "design": {
+    "primaryColor": "#111111",
+    "accentColor": "#f2f2f2",
+    "textColor": "#111111",
+    "borderColor": "#e7e7e7",
+    "accordionToggleBg": "#111111",
+    "accordionToggleIcon": "#ffffff",
+    "accordionToggleBgHover": "#000000",
+    "accordionToggleIconHover": "#ffffff",
+    "fontFamily": "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+    "buttonRadius": 10,
+    "cardRadius": 14
+  },
   "elements": [
     {
       "element_key": "material",
@@ -77,6 +90,16 @@ Alle neuen UI-Elemente, Optionen und Abhängigkeiten werden unter dem WordPress-
 - Bedingungen unterstützen `equals`, `not_equals`, `in`, `not_in`, `contains`, `exists`.
 - Aktionen erlauben `show_elements`, `hide_elements`, `filter_options`, `disable_options` (mit DE/EN Begründung), `set_required`, `unset_required`.
 - Die Reihenfolge wird über `priority` gesteuert; niedrigere Werte laufen zuerst.
+- Der Admin bietet dafür einen visuellen Builder:
+  - Bedingungen: „Wenn Element“, „Operator“, „Wert“ (mit Option-Dropdown bei Single/Multi).
+  - Aktionen: Multi-Selects für Elementlisten sowie wiederholbare Zeilen für `filter_options` und `disable_options`.
+  - Intern bleibt die Speicherung vollständig kompatibel im bestehenden `rules`-JSON.
+
+## Design-Tokens (neu)
+- `accordionToggleBg`: Hintergrundfarbe des Accordion-Toggle-Buttons.
+- `accordionToggleIcon`: Pfeilfarbe im Accordion-Toggle.
+- `accordionToggleBgHover`: Hintergrundfarbe bei Hover/Focus.
+- `accordionToggleIconHover`: Pfeilfarbe bei Hover/Focus.
 
 ### Praxisbeispiel: Produktspezifische Einschränkungen
 

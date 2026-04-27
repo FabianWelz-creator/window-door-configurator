@@ -20,6 +20,10 @@
   if(d.accentColor)  style.setProperty('--scc-accent', d.accentColor);
   if(d.textColor)    style.setProperty('--scc-text', d.textColor);
   if(d.borderColor)  style.setProperty('--scc-border', d.borderColor);
+  if(d.accordionToggleBg) style.setProperty('--scc-toggle-bg', d.accordionToggleBg);
+  if(d.accordionToggleIcon) style.setProperty('--scc-toggle-icon', d.accordionToggleIcon);
+  if(d.accordionToggleBgHover) style.setProperty('--scc-toggle-bg-hover', d.accordionToggleBgHover);
+  if(d.accordionToggleIconHover) style.setProperty('--scc-toggle-icon-hover', d.accordionToggleIconHover);
   if(d.fontFamily)   style.setProperty('--scc-font', d.fontFamily);
   if(typeof d.buttonRadius !== 'undefined') style.setProperty('--scc-btn-radius', d.buttonRadius+'px');
   if(typeof d.cardRadius !== 'undefined') style.setProperty('--scc-card-radius', d.cardRadius+'px');

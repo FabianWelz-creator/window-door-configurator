@@ -25,9 +25,15 @@
 .schmitke-option-panel-body{padding:12px;display:none}
 .schmitke-option-panel.open .schmitke-option-panel-body{display:block}
 .schmitke-option-panel.open .schmitke-option-toggle-icon{transform:rotate(180deg)}
-.schmitke-actions textarea.is-invalid{border-color:#d63638;box-shadow:0 0 0 1px #d63638}
-.schmitke-json-hint{margin-top:4px;font-size:12px;color:#d63638;min-height:16px}
+.schmitke-conditions,.schmitke-actions{display:flex;flex-direction:column;gap:8px;padding:10px 12px}
+.schmitke-condition-row,.schmitke-action-row{display:grid;grid-template-columns:120px minmax(180px,1fr) 80px minmax(140px,1fr) 60px minmax(220px,1fr) auto;gap:8px;align-items:center}
+.schmitke-action-field{display:flex;flex-direction:column;gap:4px}
+.schmitke-action-field select[multiple]{min-height:110px}
+.schmitke-action-builder{border:1px solid #e2e2e2;border-radius:8px;padding:10px;background:#fff;display:flex;flex-direction:column;gap:8px}
+.schmitke-field-label{font-size:12px;color:#555}
+.schmitke-disable-reason{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 @media(max-width:900px){
   .schmitke-design-grid{grid-template-columns:1fr 1fr}
   .schmitke-model-grid{grid-template-columns:1fr}
+  .schmitke-condition-row,.schmitke-action-row{grid-template-columns:1fr}
 }

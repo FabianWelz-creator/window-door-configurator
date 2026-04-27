@@ -25,6 +25,10 @@
       accentColor: '#f2f2f2',
       textColor: '#111111',
       borderColor: '#e7e7e7',
+      accordionToggleBg: '#111111',
+      accordionToggleIcon: '#ffffff',
+      accordionToggleBgHover: '#000000',
+      accordionToggleIconHover: '#ffffff',
       fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
       buttonRadius: 10,
       cardRadius: 14
@@ -395,6 +399,10 @@
     addColor('Accent Color', 'accentColor');
     addColor('Text Color', 'textColor');
     addColor('Border Color', 'borderColor');
+    addColor('Accordion Toggle BG', 'accordionToggleBg');
+    addColor('Accordion Toggle Icon', 'accordionToggleIcon');
+    addColor('Accordion Toggle BG Hover', 'accordionToggleBgHover');
+    addColor('Accordion Toggle Icon Hover', 'accordionToggleIconHover');
 
     $('<label>Font Family <input type="text"></label>')
       .find('input')
@@ -601,77 +609,188 @@
       addNumber(grid, 'priority', rule, 'Priorität');
 
       const condWrap=$('<div class="schmitke-conditions"></div>').appendTo(card);
-      $('<strong>Bedingungen</strong>').appendTo(condWrap);
+      $('<strong>Bedingungen (WHEN)</strong>').appendTo(condWrap);
       $('<button type="button" class="button">+ Bedingung</button>').on('click', function(){
         rule.when.conditions.push({element_key:'', operator:'equals', value:''});
         render();
       }).appendTo(condWrap);
       (rule.when.conditions||[]).forEach((cond, cIdx)=>{
         const row=$('<div class="schmitke-condition-row"></div>').appendTo(condWrap);
-        const sel=$('<select></select>');
+        row.append('<span class="schmitke-field-label">Wenn Element</span>');
+        const sel=$('<select></select>').append('<option value="">Element wählen…</option>');
         settings.elements.forEach(function(el){
-          var label = (el.labels && el.labels.de) ? el.labels.de : el.element_key;
-          sel.append('<option value="'+el.element_key+'">'+label+'</option>');
+          const label = (el.labels && el.labels.de) ? el.labels.de : el.element_key;
+          if(!el.element_key) return;
+          sel.append('<option value="'+el.element_key+'">'+label+' ('+el.element_key+')</option>');
         });
-        sel.val(cond.element_key).on('change', function(){ cond.element_key=$(this).val(); });
+        sel.val(cond.element_key).on('change', function(){ cond.element_key=$(this).val(); render(); });
         row.append(sel);
+        row.append('<span class="schmitke-field-label">Operator</span>');
         const opSel=$('<select></select>').append(['equals','not_equals','in','not_in','contains','exists'].map(op=>'<option value="'+op+'">'+op+'</option>'));
-        opSel.val(cond.operator).on('change', function(){ cond.operator=$(this).val(); });
+        opSel.val(cond.operator || 'equals').on('change', function(){ cond.operator=$(this).val(); render(); });
         row.append(opSel);
-        $('<input type="text" placeholder="Wert">').val(cond.value||'').on('input', function(){ cond.value=$(this).val(); }).appendTo(row);
+        row.append('<span class="schmitke-field-label">Wert</span>');
+        renderConditionValueInput(row, cond);
         $('<button type="button" class="button-link-delete">×</button>').on('click', function(){ rule.when.conditions.splice(cIdx,1); render(); }).appendTo(row);
       });
 
       const actions=$('<div class="schmitke-actions"></div>').appendTo(card);
-      $('<label>Elemente zeigen (Keys, Komma)</label>').append($('<input type="text">').val((rule.then.show_elements||[]).join(',')).on('input', function(){ rule.then.show_elements = splitList($(this).val()); })).appendTo(actions);
-      $('<label>Elemente verstecken (Keys, Komma)</label>').append($('<input type="text">').val((rule.then.hide_elements||[]).join(',')).on('input', function(){ rule.then.hide_elements = splitList($(this).val()); })).appendTo(actions);
-      $('<label>Pflicht setzen (Keys, Komma)</label>').append($('<input type="text">').val((rule.then.set_required||[]).join(',')).on('input', function(){ rule.then.set_required = splitList($(this).val()); })).appendTo(actions);
-      $('<label>Pflicht entfernen (Keys, Komma)</label>').append($('<input type="text">').val((rule.then.unset_required||[]).join(',')).on('input', function(){ rule.then.unset_required = splitList($(this).val()); })).appendTo(actions);
-      const filterLabel = $('<label>filter_options (JSON)</label>').appendTo(actions);
-      const filterTextarea = $('<textarea rows="2"></textarea>').val(JSON.stringify(rule.then.filter_options||[])).appendTo(filterLabel);
-      bindJsonTextarea(filterTextarea, function(parsed){
-        rule.then.filter_options = parsed;
-      });
-      const disableLabel = $('<label>disable_options (JSON)</label>').appendTo(actions);
-      const disableTextarea = $('<textarea rows="2"></textarea>').val(JSON.stringify(rule.then.disable_options||[])).appendTo(disableLabel);
-      bindJsonTextarea(disableTextarea, function(parsed){
-        rule.then.disable_options = parsed;
-      });
+      $('<strong>Aktionen (THEN)</strong>').appendTo(actions);
+      renderElementMultiSelect(actions, 'Elemente zeigen', rule.then, 'show_elements');
+      renderElementMultiSelect(actions, 'Elemente verstecken', rule.then, 'hide_elements');
+      renderElementMultiSelect(actions, 'Pflicht setzen', rule.then, 'set_required');
+      renderElementMultiSelect(actions, 'Pflicht entfernen', rule.then, 'unset_required');
+      renderFilterActions(actions, rule);
+      renderDisableActions(actions, rule);
     });
   }
 
-  function splitList(val){
-    return (val||'').split(',').map(v=>v.trim()).filter(Boolean);
+  function getElementLabel(el){
+    if(!el) return '';
+    if(el.labels && el.labels.de) return el.labels.de;
+    return el.element_key || '';
   }
 
-  function bindJsonTextarea(textarea, onValidJson){
-    if(!textarea || !textarea.length) return;
-    const hint = $('<div class="schmitke-json-hint" aria-live="polite"></div>');
-    textarea.after(hint);
-    const parseNow = function(){
-      const raw = (textarea.val() || '').trim();
-      if(!raw){
-        onValidJson([]);
-        textarea.removeClass('is-invalid');
-        hint.text('');
-        syncInputs();
-        return;
+  function getElementOptions(elementKey){
+    const byKey = settings.elements.find(function(el){ return el.element_key === elementKey; });
+    if(!byKey) return [];
+    const source = settings.options_by_element[byKey.__uid] || settings.options_by_element[elementKey] || [];
+    return source.slice();
+  }
+
+  function renderElementMultiSelect(container, label, target, key){
+    const row = $('<label class="schmitke-action-field"></label>').appendTo(container);
+    $('<span>'+label+'</span>').appendTo(row);
+    const select = $('<select multiple size="5"></select>').appendTo(row);
+    settings.elements.forEach(function(el){
+      if(!el.element_key) return;
+      const option = $('<option></option>').val(el.element_key).text(getElementLabel(el) + ' (' + el.element_key + ')');
+      select.append(option);
+    });
+    select.val((target[key] || []).slice());
+    select.on('change', function(){
+      target[key] = ($(this).val() || []).filter(Boolean);
+    });
+  }
+
+  function renderConditionValueInput(row, cond){
+    const operator = cond.operator || 'equals';
+    const options = getElementOptions(cond.element_key);
+    const shouldBeMulti = operator === 'in' || operator === 'not_in';
+    const disableValue = operator === 'exists';
+    if(disableValue){
+      $('<input type="text" placeholder="Bei \"exists\" nicht benötigt" disabled>').appendTo(row);
+      cond.value = '';
+      return;
+    }
+    if(options.length){
+      const select = $('<select></select>').appendTo(row);
+      if(shouldBeMulti){
+        select.attr('multiple', 'multiple').attr('size', Math.min(6, Math.max(3, options.length)));
+      } else {
+        select.append('<option value="">Option wählen…</option>');
       }
-      try{
-        const parsed = JSON.parse(raw);
-        if(!Array.isArray(parsed)){
-          throw new Error('expected-array');
+      options.forEach(function(opt){
+        const label = (opt.labels && opt.labels.de) ? opt.labels.de : opt.option_code;
+        if(!opt.option_code) return;
+        select.append('<option value="'+opt.option_code+'">'+label+' ('+opt.option_code+')</option>');
+      });
+      if(shouldBeMulti){
+        const current = Array.isArray(cond.value) ? cond.value : (cond.value ? [cond.value] : []);
+        select.val(current);
+      } else {
+        select.val(Array.isArray(cond.value) ? (cond.value[0] || '') : (cond.value || ''));
+      }
+      select.on('change', function(){
+        const raw = $(this).val();
+        cond.value = shouldBeMulti ? (raw || []) : (raw || '');
+      });
+      return;
+    }
+    $('<input type="text" placeholder="Wert (Code)">')
+      .val(Array.isArray(cond.value) ? cond.value.join(',') : (cond.value || ''))
+      .on('input', function(){
+        if(shouldBeMulti){
+          cond.value = $(this).val().split(',').map(function(v){ return v.trim(); }).filter(Boolean);
+        } else {
+          cond.value = $(this).val();
         }
-        onValidJson(parsed);
-        textarea.removeClass('is-invalid');
-        hint.text('');
-        syncInputs();
-      }catch(e){
-        textarea.addClass('is-invalid');
-        hint.text('Ungültiges JSON (erwartet: Array, z. B. [{"element_key":"form","allowed":["rechteckig"]}]).');
-      }
-    };
-    textarea.on('input blur change', parseNow);
+      })
+      .appendTo(row);
+  }
+
+  function renderFilterActions(container, rule){
+    const wrap = $('<div class="schmitke-action-builder"></div>').appendTo(container);
+    $('<strong>Optionen filtern</strong>').appendTo(wrap);
+    $('<button type="button" class="button">+ Filter hinzufügen</button>').on('click', function(){
+      rule.then.filter_options = rule.then.filter_options || [];
+      rule.then.filter_options.push({element_key:'', allowed:[]});
+      render();
+    }).appendTo(wrap);
+    (rule.then.filter_options || []).forEach(function(entry, idx){
+      const row = $('<div class="schmitke-action-row"></div>').appendTo(wrap);
+      const targetSelect = $('<select></select>').append('<option value="">Ziel-Element wählen…</option>').appendTo(row);
+      settings.elements.forEach(function(el){
+        if(!el.element_key) return;
+        targetSelect.append('<option value="'+el.element_key+'">'+getElementLabel(el)+' ('+el.element_key+')</option>');
+      });
+      targetSelect.val(entry.element_key || '').on('change', function(){
+        entry.element_key = $(this).val();
+        entry.allowed = [];
+        render();
+      });
+      const allowedSelect = $('<select multiple size="4"></select>').appendTo(row);
+      getElementOptions(entry.element_key).forEach(function(opt){
+        if(!opt.option_code) return;
+        const lbl = (opt.labels && opt.labels.de) ? opt.labels.de : opt.option_code;
+        allowedSelect.append('<option value="'+opt.option_code+'">'+lbl+' ('+opt.option_code+')</option>');
+      });
+      allowedSelect.val(Array.isArray(entry.allowed) ? entry.allowed : []);
+      allowedSelect.on('change', function(){ entry.allowed = $(this).val() || []; });
+      $('<button type="button" class="button-link-delete">Entfernen</button>').on('click', function(){
+        rule.then.filter_options.splice(idx,1);
+        render();
+      }).appendTo(row);
+    });
+  }
+
+  function renderDisableActions(container, rule){
+    const wrap = $('<div class="schmitke-action-builder"></div>').appendTo(container);
+    $('<strong>Optionen deaktivieren</strong>').appendTo(wrap);
+    $('<button type="button" class="button">+ Deaktivierung hinzufügen</button>').on('click', function(){
+      rule.then.disable_options = rule.then.disable_options || [];
+      rule.then.disable_options.push({element_key:'', codes:[], reason:{de:'', en:''}});
+      render();
+    }).appendTo(wrap);
+    (rule.then.disable_options || []).forEach(function(entry, idx){
+      entry.reason = entry.reason || {de:'', en:''};
+      const row = $('<div class="schmitke-action-row"></div>').appendTo(wrap);
+      const targetSelect = $('<select></select>').append('<option value="">Ziel-Element wählen…</option>').appendTo(row);
+      settings.elements.forEach(function(el){
+        if(!el.element_key) return;
+        targetSelect.append('<option value="'+el.element_key+'">'+getElementLabel(el)+' ('+el.element_key+')</option>');
+      });
+      targetSelect.val(entry.element_key || '').on('change', function(){
+        entry.element_key = $(this).val();
+        entry.codes = [];
+        render();
+      });
+      const disableSelect = $('<select multiple size="4"></select>').appendTo(row);
+      getElementOptions(entry.element_key).forEach(function(opt){
+        if(!opt.option_code) return;
+        const lbl = (opt.labels && opt.labels.de) ? opt.labels.de : opt.option_code;
+        disableSelect.append('<option value="'+opt.option_code+'">'+lbl+' ('+opt.option_code+')</option>');
+      });
+      disableSelect.val(Array.isArray(entry.codes) ? entry.codes : []);
+      disableSelect.on('change', function(){ entry.codes = $(this).val() || []; });
+      const reasonWrap = $('<div class="schmitke-disable-reason"></div>').appendTo(row);
+      $('<input type="text" placeholder="Grund DE">').val(entry.reason.de || '').on('input', function(){ entry.reason.de = $(this).val(); }).appendTo(reasonWrap);
+      $('<input type="text" placeholder="Reason EN">').val(entry.reason.en || '').on('input', function(){ entry.reason.en = $(this).val(); }).appendTo(reasonWrap);
+      $('<button type="button" class="button-link-delete">Entfernen</button>').on('click', function(){
+        rule.then.disable_options.splice(idx,1);
+        render();
+      }).appendTo(row);
+    });
   }
 
   function updateOptionOrders(elementKey){
