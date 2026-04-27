@@ -469,7 +469,7 @@
     function updateTogglePreview(){
       applyPreviewStyle(normal, settings.design.accentColor, settings.design.accordionToggleIcon);
       applyPreviewStyle(hover, settings.design.accordionToggleBgHover, settings.design.accordionToggleIconHover);
-      applyPreviewStyle(open, settings.design.primaryColor, settings.design.accordionToggleIconOpen);
+      applyPreviewStyle(open, settings.design.accordionToggleBgOpen, settings.design.accordionToggleIconOpen);
     }
     updateTogglePreview();
 

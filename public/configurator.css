@@ -26,6 +26,8 @@
 .accordion-enabled .scc-section-body[hidden]{display:none}
 .scc-section-toggle{border:1px solid #111111;background:var(--scc-toggle-bg);border-radius:12px;display:flex;align-items:center;justify-content:center;padding:10px;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,transform .15s ease,box-shadow .15s ease;min-width:40px;min-height:40px;box-shadow:0 2px 8px rgba(0,0,0,.14)}
 .scc-section-toggle:hover{background:var(--scc-toggle-bg-hover);border-color:var(--scc-toggle-bg-hover);transform:translateY(-1px)}
+.scc-section-toggle:focus,.scc-section-toggle:focus-visible{background:var(--scc-toggle-bg)}
+.scc-section.open .scc-section-toggle:focus,.scc-section.open .scc-section-toggle:focus-visible{background:var(--scc-toggle-bg-open)}
 .scc-section-toggle:focus-visible{outline:2px solid var(--scc-primary);outline-offset:2px}
 .scc-section-toggle:active{transform:translateY(0)}
 .scc-section.open .scc-section-toggle{background:var(--scc-toggle-bg-open);border-color:#111111}
