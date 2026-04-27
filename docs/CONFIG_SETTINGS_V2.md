@@ -15,6 +15,13 @@ Alle neuen UI-Elemente, Optionen und Abhängigkeiten werden unter dem WordPress-
     "accordionToggleIcon": "#ffffff",
     "accordionToggleBgHover": "#000000",
     "accordionToggleIconHover": "#ffffff",
+    "accordionToggleBgFocus": "#f2f2f2",
+    "accordionToggleIconFocus": "#111111",
+    "accordionToggleBgOpen": "#111111",
+    "accordionToggleIconOpen": "#ffffff",
+    "accordionToggleBgOpenFocus": "#111111",
+    "accordionToggleIconOpenFocus": "#ffffff",
+    "focusOutlineColor": "#111111",
     "fontFamily": "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
     "buttonRadius": 10,
     "cardRadius": 14
@@ -98,8 +105,15 @@ Alle neuen UI-Elemente, Optionen und Abhängigkeiten werden unter dem WordPress-
 ## Design-Tokens (neu)
 - `accordionToggleBg`: Hintergrundfarbe des Accordion-Toggle-Buttons.
 - `accordionToggleIcon`: Pfeilfarbe im Accordion-Toggle.
-- `accordionToggleBgHover`: Hintergrundfarbe bei Hover/Focus.
-- `accordionToggleIconHover`: Pfeilfarbe bei Hover/Focus.
+- `accordionToggleBgHover`: Hintergrundfarbe bei Hover.
+- `accordionToggleIconHover`: Pfeilfarbe bei Hover.
+- `accordionToggleBgFocus`: Hintergrundfarbe bei Focus (geschlossen).
+- `accordionToggleIconFocus`: Pfeilfarbe bei Focus (geschlossen).
+- `accordionToggleBgOpen`: Hintergrundfarbe im geöffneten Zustand.
+- `accordionToggleIconOpen`: Pfeilfarbe im geöffneten Zustand.
+- `accordionToggleBgOpenFocus`: Hintergrundfarbe bei Focus im geöffneten Zustand.
+- `accordionToggleIconOpenFocus`: Pfeilfarbe bei Focus im geöffneten Zustand.
+- `focusOutlineColor`: Farbe für den sichtbaren Focus-Ring.
 
 ### Praxisbeispiel: Produktspezifische Einschränkungen
 

@@ -39,8 +39,13 @@
       accordionToggleIcon: '#111111',
       accordionToggleBgHover: '#000000',
       accordionToggleIconHover: '#ffffff',
+      accordionToggleBgFocus: '#f2f2f2',
+      accordionToggleIconFocus: '#111111',
       accordionToggleBgOpen: '#111111',
       accordionToggleIconOpen: '#ffffff',
+      accordionToggleBgOpenFocus: '#111111',
+      accordionToggleIconOpenFocus: '#ffffff',
+      focusOutlineColor: '#111111',
       fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
       buttonRadius: 10,
       cardRadius: 14
@@ -435,8 +440,13 @@
     addColor('Accordion Toggle Icon', 'accordionToggleIcon');
     addColor('Accordion Toggle BG Hover', 'accordionToggleBgHover');
     addColor('Accordion Toggle Icon Hover', 'accordionToggleIconHover');
+    addColor('Accordion Toggle BG Focus', 'accordionToggleBgFocus');
+    addColor('Accordion Toggle Icon Focus', 'accordionToggleIconFocus');
     addColor('Accordion Toggle BG Open', 'accordionToggleBgOpen');
     addColor('Accordion Toggle Icon Open', 'accordionToggleIconOpen');
+    addColor('Accordion Toggle BG Open Focus', 'accordionToggleBgOpenFocus');
+    addColor('Accordion Toggle Icon Open Focus', 'accordionToggleIconOpenFocus');
+    addColor('Focus Outline Color', 'focusOutlineColor');
 
     $('<label>Font Family <input type="text"></label>')
       .find('input')
@@ -453,10 +463,14 @@
     const row = $('<div class="schmitke-toggle-preview-row"></div>').appendTo(preview);
     const normal = $('<button type="button" class="schmitke-preview-btn"><span>⌄</span></button>').appendTo(row);
     const hover = $('<button type="button" class="schmitke-preview-btn"><span>⌄</span></button>').appendTo(row);
+    const focus = $('<button type="button" class="schmitke-preview-btn"><span>⌄</span></button>').appendTo(row);
     const open = $('<button type="button" class="schmitke-preview-btn"><span>⌃</span></button>').appendTo(row);
+    const openFocus = $('<button type="button" class="schmitke-preview-btn"><span>⌃</span></button>').appendTo(row);
     $('<span class="schmitke-preview-label">Normal</span>').appendTo($('<div class="schmitke-preview-cell"></div>').append(normal).appendTo(row));
     $('<span class="schmitke-preview-label">Hover</span>').appendTo($('<div class="schmitke-preview-cell"></div>').append(hover).appendTo(row));
+    $('<span class="schmitke-preview-label">Focus</span>').appendTo($('<div class="schmitke-preview-cell"></div>').append(focus).appendTo(row));
     $('<span class="schmitke-preview-label">Offen</span>').appendTo($('<div class="schmitke-preview-cell"></div>').append(open).appendTo(row));
+    $('<span class="schmitke-preview-label">Offen + Focus</span>').appendTo($('<div class="schmitke-preview-cell"></div>').append(openFocus).appendTo(row));
 
     function applyPreviewStyle(button, bg, icon){
       button.css({
@@ -469,7 +483,11 @@
     function updateTogglePreview(){
       applyPreviewStyle(normal, settings.design.accentColor, settings.design.accordionToggleIcon);
       applyPreviewStyle(hover, settings.design.accordionToggleBgHover, settings.design.accordionToggleIconHover);
+      applyPreviewStyle(focus, settings.design.accordionToggleBgFocus, settings.design.accordionToggleIconFocus);
+      focus.css({outline: '2px solid ' + (settings.design.focusOutlineColor || '#111111')});
       applyPreviewStyle(open, settings.design.accordionToggleBgOpen, settings.design.accordionToggleIconOpen);
+      applyPreviewStyle(openFocus, settings.design.accordionToggleBgOpenFocus, settings.design.accordionToggleIconOpenFocus);
+      openFocus.css({outline: '2px solid ' + (settings.design.focusOutlineColor || '#111111')});
     }
     updateTogglePreview();
 

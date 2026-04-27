@@ -25,8 +25,13 @@
   if(d.accordionToggleIcon) style.setProperty('--scc-toggle-icon', d.accordionToggleIcon);
   if(d.accordionToggleBgHover) style.setProperty('--scc-toggle-bg-hover', d.accordionToggleBgHover);
   if(d.accordionToggleIconHover) style.setProperty('--scc-toggle-icon-hover', d.accordionToggleIconHover);
+  if(d.accordionToggleBgFocus) style.setProperty('--scc-toggle-bg-focus', d.accordionToggleBgFocus);
+  if(d.accordionToggleIconFocus) style.setProperty('--scc-toggle-icon-focus', d.accordionToggleIconFocus);
   if(d.accordionToggleBgOpen) style.setProperty('--scc-toggle-bg-open', d.accordionToggleBgOpen);
   if(d.accordionToggleIconOpen) style.setProperty('--scc-toggle-icon-open', d.accordionToggleIconOpen);
+  if(d.accordionToggleBgOpenFocus) style.setProperty('--scc-toggle-bg-open-focus', d.accordionToggleBgOpenFocus);
+  if(d.accordionToggleIconOpenFocus) style.setProperty('--scc-toggle-icon-open-focus', d.accordionToggleIconOpenFocus);
+  if(d.focusOutlineColor) style.setProperty('--scc-focus-outline', d.focusOutlineColor);
   if(d.fontFamily)   style.setProperty('--scc-font', d.fontFamily);
   if(typeof d.buttonRadius !== 'undefined') style.setProperty('--scc-btn-radius', d.buttonRadius+'px');
   if(typeof d.cardRadius !== 'undefined') style.setProperty('--scc-card-radius', d.cardRadius+'px');
