@@ -778,15 +778,43 @@
   function renderElementMultiSelect(container, label, target, key, helpText){
     const row = $('<label class="schmitke-action-field"></label>').appendTo(container);
     createActionLabel(label, helpText).appendTo(row);
-    const select = $('<select multiple size="5"></select>').appendTo(row);
+    const select = $('<select multiple size="5" class="schmitke-multi-select"></select>').appendTo(row);
     settings.elements.forEach(function(el){
       if(!el.element_key) return;
       const option = $('<option></option>').val(el.element_key).text(getElementLabel(el) + ' (' + el.element_key + ')');
       select.append(option);
     });
-    select.val((target[key] || []).slice());
+
+    const selectedValues = new Set((target[key] || []).filter(Boolean));
+    select.val(Array.from(selectedValues));
+    const helper = $('<div class="schmitke-multi-checkboxes"></div>').appendTo(row);
+
+    settings.elements.forEach(function(el){
+      if(!el.element_key) return;
+      const elementKey = el.element_key;
+      const checkLabel = $('<label class="schmitke-multi-checkbox"></label>').appendTo(helper);
+      const checkbox = $('<input type="checkbox">').val(elementKey).appendTo(checkLabel);
+      checkbox.prop('checked', selectedValues.has(elementKey));
+      $('<span></span>').text(getElementLabel(el) + ' (' + elementKey + ')').appendTo(checkLabel);
+
+      checkbox.on('change', function(){
+        if($(this).is(':checked')){
+          selectedValues.add(elementKey);
+        } else {
+          selectedValues.delete(elementKey);
+        }
+        target[key] = Array.from(selectedValues);
+        select.val(target[key]);
+      });
+    });
+
     select.on('change', function(){
-      target[key] = ($(this).val() || []).filter(Boolean);
+      const current = new Set((($(this).val()) || []).filter(Boolean));
+      target[key] = Array.from(current);
+      helper.find('input[type="checkbox"]').each(function(){
+        const val = $(this).val();
+        $(this).prop('checked', current.has(val));
+      });
     });
   }
 
