@@ -5,6 +5,13 @@
   const LANG = (DATA.locale === 'de') ? 'de' : 'en';
   const IMAGE_FITS = ['contain', 'cover', 'scale-down', 'fill', 'none'];
   const normalizeImageFit = (value)=> IMAGE_FITS.includes(value) ? value : '';
+  const normalizeIdentifier = (value)=> String(value || '')
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9_-]/g, '');
 
   // Apply design variables early so v2 also benefits from them
   const d = DATA.design || {};
@@ -43,15 +50,16 @@
     const elementTypes = {};
     const optionLabelMap = {};
     elements.forEach(el=>{
-      elementLabels[el.element_key] = getLabel(el.labels);
-      elementTypes[el.element_key] = el.type || 'single';
+      const elementKey = normalizeIdentifier(el.element_key);
+      elementLabels[elementKey] = getLabel(el.labels);
+      elementTypes[elementKey] = el.type || 'single';
     });
     Object.entries(optionsMap).forEach(([key, list])=>{
       const map = new Map();
       (list || []).forEach(opt=>{
-        map.set(opt.option_code, getLabel(opt.labels) || opt.option_code || '');
+        map.set(normalizeIdentifier(opt.option_code), getLabel(opt.labels) || opt.option_code || '');
       });
-      optionLabelMap[key] = map;
+      optionLabelMap[normalizeIdentifier(key)] = map;
     });
     const STORAGE_KEY_V2 = 'schmitke_windows_offer_state_v2';
     const state = {
@@ -101,30 +109,33 @@
       const type = (rule.when.type || 'and').toLowerCase() === 'or' ? 'or' : 'and';
       const evalCond = (cond)=>{
         if(!cond || !cond.element_key) return false;
-        const val = state.selections[cond.element_key];
+        const conditionKey = normalizeIdentifier(cond.element_key);
+        const val = state.selections[conditionKey];
         const operator = cond.operator || 'equals';
-        const cmpVal = cond.value;
+        const cmpVal = Array.isArray(cond.value)
+          ? cond.value.map(normalizeIdentifier)
+          : normalizeIdentifier(cond.value);
         switch(operator){
           case 'exists':
             if(Array.isArray(val)) return val.length>0;
             return val !== undefined && val !== null && val !== '';
           case 'equals':
-            if(Array.isArray(val)) return val.includes(cmpVal);
-            return val === cmpVal;
+            if(Array.isArray(val)) return val.map(normalizeIdentifier).includes(cmpVal);
+            return normalizeIdentifier(val) === cmpVal;
           case 'not_equals':
-            if(Array.isArray(val)) return !val.includes(cmpVal);
-            return val !== cmpVal;
+            if(Array.isArray(val)) return !val.map(normalizeIdentifier).includes(cmpVal);
+            return normalizeIdentifier(val) !== cmpVal;
           case 'in':
             if(!Array.isArray(cmpVal)) return false;
-            if(Array.isArray(val)) return val.some(v=>cmpVal.includes(v));
-            return cmpVal.includes(val);
+            if(Array.isArray(val)) return val.map(normalizeIdentifier).some(v=>cmpVal.includes(v));
+            return cmpVal.includes(normalizeIdentifier(val));
           case 'not_in':
             if(!Array.isArray(cmpVal)) return true;
-            if(Array.isArray(val)) return val.every(v=>!cmpVal.includes(v));
-            return !cmpVal.includes(val);
+            if(Array.isArray(val)) return val.map(normalizeIdentifier).every(v=>!cmpVal.includes(v));
+            return !cmpVal.includes(normalizeIdentifier(val));
           case 'contains':
-            if(Array.isArray(val)) return val.includes(cmpVal);
-            if(typeof val === 'string') return val.indexOf(cmpVal)>=0;
+            if(Array.isArray(val)) return val.map(normalizeIdentifier).includes(cmpVal);
+            if(typeof val === 'string') return normalizeIdentifier(val).indexOf(cmpVal)>=0;
             return false;
           default:
             return false;
@@ -144,53 +155,56 @@
       rules.forEach(rule=>{
         if(!evaluateRuleConditions(rule)) return;
         const actions = rule.then || {};
-        (actions.show_elements || []).forEach(k=> visibility.set(k, true));
-        (actions.hide_elements || []).forEach(k=> { hidden.add(k); visibility.set(k, false); });
+        (actions.hide_elements || []).forEach(k=> { hidden.add(normalizeIdentifier(k)); visibility.set(normalizeIdentifier(k), false); });
+        (actions.show_elements || []).forEach(k=> visibility.set(normalizeIdentifier(k), true));
         (actions.filter_options || []).forEach(entry=>{
           if(!entry || !entry.element_key || !Array.isArray(entry.allowed)) return;
-          const allowedSet = new Set(entry.allowed);
-          if(filters.has(entry.element_key)){
-            const cur = filters.get(entry.element_key);
+          const entryKey = normalizeIdentifier(entry.element_key);
+          const allowedSet = new Set(entry.allowed.map(normalizeIdentifier));
+          if(filters.has(entryKey)){
+            const cur = filters.get(entryKey);
             const intersection = new Set();
             cur.forEach(code=>{ if(allowedSet.has(code)) intersection.add(code); });
-            filters.set(entry.element_key, intersection);
+            filters.set(entryKey, intersection);
           } else {
-            filters.set(entry.element_key, allowedSet);
+            filters.set(entryKey, allowedSet);
           }
         });
         (actions.disable_options || []).forEach(entry=>{
           if(!entry || !entry.element_key || !Array.isArray(entry.codes)) return;
-          const map = disabled.get(entry.element_key) || new Map();
+          const entryKey = normalizeIdentifier(entry.element_key);
+          const map = disabled.get(entryKey) || new Map();
           entry.codes.forEach(code=>{
-            map.set(code, entry.reason || null);
+            map.set(normalizeIdentifier(code), entry.reason || null);
           });
-          disabled.set(entry.element_key, map);
+          disabled.set(entryKey, map);
         });
-        (actions.set_required || []).forEach(k=> required.set(k, true));
-        (actions.unset_required || []).forEach(k=> required.set(k, false));
+        (actions.set_required || []).forEach(k=> required.set(normalizeIdentifier(k), true));
+        (actions.unset_required || []).forEach(k=> required.set(normalizeIdentifier(k), false));
       });
       return {visibility, hidden, filters, disabled, required};
     }
 
     function sanitizeSelections(ruleEffects){
       elements.forEach(el=>{
-        const visibleOverride = ruleEffects.visibility.has(el.element_key) ? ruleEffects.visibility.get(el.element_key) : undefined;
-        const isVisible = ruleEffects.hidden.has(el.element_key)
+        const elementKey = normalizeIdentifier(el.element_key);
+        const visibleOverride = ruleEffects.visibility.has(elementKey) ? ruleEffects.visibility.get(elementKey) : undefined;
+        const isVisible = ruleEffects.hidden.has(elementKey)
           ? false
           : (visibleOverride !== undefined ? visibleOverride : (el.visible_default !== false));
         if(!isVisible){
-          delete state.selections[el.element_key];
+          delete state.selections[elementKey];
           return;
         }
-        const allowed = ruleEffects.filters.get(el.element_key);
+        const allowed = ruleEffects.filters.get(elementKey);
         if(!allowed) return;
-        const sel = state.selections[el.element_key];
+        const sel = state.selections[elementKey];
         if(Array.isArray(sel)){
-          const filtered = sel.filter(code=>allowed.has(code));
-          if(filtered.length){ state.selections[el.element_key] = filtered; }
-          else { delete state.selections[el.element_key]; }
-        } else if(sel && !allowed.has(sel)){
-          delete state.selections[el.element_key];
+          const filtered = sel.filter(code=>allowed.has(normalizeIdentifier(code)));
+          if(filtered.length){ state.selections[elementKey] = filtered; }
+          else { delete state.selections[elementKey]; }
+        } else if(sel && !allowed.has(normalizeIdentifier(sel))){
+          delete state.selections[elementKey];
         }
       });
     }
@@ -201,13 +215,14 @@
       sanitizeSelections(ruleEffects);
       const requiredFlags = {};
       elements.forEach(function(el, idx){
-        if(ruleEffects.hidden.has(el.element_key)) return;
-        const visibleOverride = ruleEffects.visibility.has(el.element_key) ? ruleEffects.visibility.get(el.element_key) : undefined;
+        const elementKey = normalizeIdentifier(el.element_key);
+        if(ruleEffects.hidden.has(elementKey)) return;
+        const visibleOverride = ruleEffects.visibility.has(elementKey) ? ruleEffects.visibility.get(elementKey) : undefined;
         const isVisible = (visibleOverride !== undefined) ? visibleOverride : (el.visible_default !== false);
         if(!isVisible) return;
-        const required = ruleEffects.required.has(el.element_key) ? ruleEffects.required.get(el.element_key) : !!el.required_default;
-        requiredFlags[el.element_key] = required;
-        const sectionKey = el.element_key || ('el_'+idx);
+        const required = ruleEffects.required.has(elementKey) ? ruleEffects.required.get(elementKey) : !!el.required_default;
+        requiredFlags[elementKey] = required;
+        const sectionKey = elementKey || ('el_'+idx);
         const section = document.createElement('div');
         section.className = 'scc-section';
         const header = document.createElement('div');
@@ -257,10 +272,10 @@
             label.textContent = getMeasurementLabel(field, field);
             const input = document.createElement('input');
             input.type = 'number';
-            const measurement = state.selections[el.element_key] || {};
+            const measurement = state.selections[elementKey] || {};
             input.value = (measurement[field] !== undefined && measurement[field] !== null) ? measurement[field] : '';
             input.addEventListener('input', function(){
-              state.selections[el.element_key] = Object.assign({}, state.selections[el.element_key] || {}, {[field]: Number(input.value)||0});
+              state.selections[elementKey] = Object.assign({}, state.selections[elementKey] || {}, {[field]: Number(input.value)||0});
               renderSummary();
             });
             label.appendChild(input);
@@ -275,15 +290,15 @@
           input.accept = 'image/*';
           input.addEventListener('change', function(){
             const file = input.files && input.files[0];
-            const current = state.selections[el.element_key] || {};
+            const current = state.selections[elementKey] || {};
             if(!file){
-              state.selections[el.element_key] = Object.assign({}, current, { filename: '', dataUrl: '' });
+              state.selections[elementKey] = Object.assign({}, current, { filename: '', dataUrl: '' });
               renderSummary();
               return;
             }
             const reader = new FileReader();
             reader.onload = function(){
-              state.selections[el.element_key] = Object.assign({}, current, { filename: file.name, dataUrl: reader.result || '' });
+              state.selections[elementKey] = Object.assign({}, current, { filename: file.name, dataUrl: reader.result || '' });
               renderSummary();
             };
             reader.readAsDataURL(file);
@@ -292,33 +307,33 @@
           const note = document.createElement('textarea');
           note.rows = 2;
           note.placeholder = getMeasurementLabel('note', 'Notiz');
-          const uploadState = state.selections[el.element_key] || {};
+          const uploadState = state.selections[elementKey] || {};
           note.value = uploadState.note || '';
           note.addEventListener('input', function(){
-            state.selections[el.element_key] = Object.assign({}, state.selections[el.element_key] || {}, {note: note.value});
+            state.selections[elementKey] = Object.assign({}, state.selections[elementKey] || {}, {note: note.value});
             renderSummary();
           });
           body.appendChild(label);
           body.appendChild(note);
         } else {
-          const allowedSet = ruleEffects.filters.get(el.element_key);
-          const opts = (optionsMap[el.element_key] || [])
+          const allowedSet = ruleEffects.filters.get(elementKey);
+          const opts = (optionsMap[elementKey] || [])
             .slice()
             .sort((a,b)=> (a.order||0)-(b.order||0))
             .filter(opt=>{
             if(!allowedSet) return true;
-            return allowedSet.has(opt.option_code);
+            return allowedSet.has(normalizeIdentifier(opt.option_code));
           });
           const gridWrap = document.createElement('div');
           gridWrap.className = 'swc-option-grid';
           opts.forEach(function(opt){
             const tile = document.createElement('div');
             tile.className = 'swc-option-card';
-            const selectedVal = state.selections[el.element_key];
+            const selectedVal = state.selections[elementKey];
             const isSelected = Array.isArray(selectedVal) ? selectedVal.includes(opt.option_code) : selectedVal === opt.option_code;
             if(isSelected) tile.classList.add('sel');
-            const disabledMap = ruleEffects.disabled.get(el.element_key);
-            const disableReason = disabledMap ? disabledMap.get(opt.option_code) : null;
+            const disabledMap = ruleEffects.disabled.get(elementKey);
+            const disableReason = disabledMap ? disabledMap.get(normalizeIdentifier(opt.option_code)) : null;
             const isDisabled = !!disableReason;
             if(isDisabled){
               tile.classList.add('swc-option-disabled');
@@ -365,15 +380,15 @@
             tile.addEventListener('click', function(){
               if(isDisabled) return;
               if(el.type === 'multi'){
-                const cur = Array.isArray(state.selections[el.element_key]) ? state.selections[el.element_key].slice() : [];
+                const cur = Array.isArray(state.selections[elementKey]) ? state.selections[elementKey].slice() : [];
                 const idx = cur.indexOf(opt.option_code);
                 if(idx >= 0){ cur.splice(idx,1); } else { cur.push(opt.option_code); }
-                state.selections[el.element_key] = cur;
+                state.selections[elementKey] = cur;
               } else {
-                if(state.selections[el.element_key] === opt.option_code){
-                  delete state.selections[el.element_key];
+                if(state.selections[elementKey] === opt.option_code){
+                  delete state.selections[elementKey];
                 } else {
-                  state.selections[el.element_key] = opt.option_code;
+                  state.selections[elementKey] = opt.option_code;
                 }
               }
               renderElements();
@@ -391,8 +406,10 @@
 
     function getOptionLabel(elementKey, code){
       if(!code) return '';
-      const map = optionLabelMap[elementKey];
-      if(map && map.has(code)) return map.get(code);
+      const normalizedElementKey = normalizeIdentifier(elementKey);
+      const normalizedCode = normalizeIdentifier(code);
+      const map = optionLabelMap[normalizedElementKey];
+      if(map && map.has(normalizedCode)) return map.get(normalizedCode);
       return code;
     }
 
@@ -415,7 +432,7 @@
     function getOrderedSummaryItems(selections){
       const items = [];
       elements.forEach(function(el){
-        const key = el.element_key;
+        const key = normalizeIdentifier(el.element_key);
         if(!key) return;
         const val = selections[key];
         if(Array.isArray(val) && !val.length) return;
@@ -502,10 +519,11 @@
         }
         const name = (state.positionDraft || '').trim() || `Position ${state.positions.length + 1}`;
         const uploads = elements.filter(el=>el.type === 'upload').map(function(el){
-          const val = state.selections[el.element_key] || {};
+          const elementKey = normalizeIdentifier(el.element_key);
+          const val = state.selections[elementKey] || {};
           if(!val.dataUrl) return null;
           return {
-            label: elementLabels[el.element_key] || el.element_key,
+            label: elementLabels[elementKey] || elementKey,
             filename: val.filename || '',
             note: val.note || '',
             data: val.dataUrl || ''

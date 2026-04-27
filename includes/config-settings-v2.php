@@ -21,6 +21,21 @@ class Schmitke_Configurator_Settings_V2 {
         add_action('admin_init', [__CLASS__, 'register_option']);
     }
 
+    private static function normalize_identifier($value) {
+        $stringValue = is_scalar($value) ? (string)$value : '';
+        if ($stringValue === '') return '';
+        $stringValue = strtr($stringValue, [
+            'Ä' => 'ae',
+            'Ö' => 'oe',
+            'Ü' => 'ue',
+            'ä' => 'ae',
+            'ö' => 'oe',
+            'ü' => 'ue',
+            'ß' => 'ss',
+        ]);
+        return sanitize_key($stringValue);
+    }
+
     public static function maybe_migrate_legacy() {
         $existing = get_option(self::OPTION_KEY, '__missing__');
         // Only migrate when the option is truly missing; an intentionally empty config should not be overwritten.
@@ -80,7 +95,7 @@ class Schmitke_Configurator_Settings_V2 {
         if (is_array($legacyElements)) {
             foreach ($legacyElements as $entry) {
                 if (!is_array($entry)) continue;
-                $key = sanitize_key($entry['element_key'] ?? '');
+                $key = self::normalize_identifier($entry['element_key'] ?? '');
                 if ($key === '') continue;
                 $labels = $entry['labels'] ?? $entry['label'] ?? [];
                 $info = $entry['info'] ?? [];
@@ -593,7 +608,7 @@ class Schmitke_Configurator_Settings_V2 {
             if ($uid === '') {
                 $uid = 'el_' . uniqid('', true);
             }
-            $key = sanitize_key($entry['element_key'] ?? '');
+            $key = self::normalize_identifier($entry['element_key'] ?? '');
             if ($key === '') {
                 $key = 'element_' . $generatedIndex++;
             }
@@ -624,7 +639,7 @@ class Schmitke_Configurator_Settings_V2 {
 
         if (empty($list)) {
             foreach ($defaults as $entry) {
-                $key = sanitize_key($entry['element_key'] ?? '');
+                $key = self::normalize_identifier($entry['element_key'] ?? '');
                 $uid = 'seed_' . ($key ?: uniqid('', true));
                 $uidMap[$uid] = $key;
                 $legacyKeyMap[$key] = $key;
@@ -645,7 +660,7 @@ class Schmitke_Configurator_Settings_V2 {
         $elementKeys = array_map(function($el){ return $el['element_key']; }, $elements);
 
         foreach ($source as $elementKey => $options) {
-            $key = sanitize_key($elementKey);
+            $key = self::normalize_identifier($elementKey);
             $canonical = null;
             if (isset($uidMap[$elementKey])) {
                 $canonical = $uidMap[$elementKey];
@@ -696,7 +711,7 @@ class Schmitke_Configurator_Settings_V2 {
 
         foreach ($options as $opt) {
             if (!is_array($opt)) continue;
-            $code = sanitize_key($opt['option_code'] ?? '');
+            $code = self::normalize_identifier($opt['option_code'] ?? '');
             if ($code === '') continue;
             $imageFit = sanitize_key($opt['image_fit'] ?? '');
             if (!in_array($imageFit, $allowedImageFits, true)) {
@@ -731,7 +746,7 @@ class Schmitke_Configurator_Settings_V2 {
         foreach ($source as $rule) {
             if (!is_array($rule)) continue;
             $result[] = [
-                'id' => sanitize_key($rule['id'] ?? ''),
+                'id' => self::normalize_identifier($rule['id'] ?? ''),
                 'name' => sanitize_text_field($rule['name'] ?? ''),
                 'priority' => isset($rule['priority']) ? intval($rule['priority']) : 0,
                 'when' => self::sanitize_conditions_group($rule['when'] ?? []),
@@ -750,9 +765,11 @@ class Schmitke_Configurator_Settings_V2 {
                 $op = $cond['operator'] ?? '';
                 if (!in_array($op, $allowedOperators, true)) continue;
                 $conditions[] = [
-                    'element_key' => sanitize_key($cond['element_key'] ?? ''),
+                    'element_key' => self::normalize_identifier($cond['element_key'] ?? ''),
                     'operator' => $op,
-                    'value' => $cond['value'] ?? null,
+                    'value' => is_array($cond['value'] ?? null)
+                        ? array_values(array_filter(array_map([__CLASS__, 'normalize_identifier'], $cond['value'])))
+                        : self::normalize_identifier($cond['value'] ?? ''),
                 ];
             }
         }
@@ -764,16 +781,16 @@ class Schmitke_Configurator_Settings_V2 {
     }
 
     private static function sanitize_rule_actions($actions) {
-        $showElements = isset($actions['show_elements']) && is_array($actions['show_elements']) ? array_map('sanitize_key', $actions['show_elements']) : [];
-        $hideElements = isset($actions['hide_elements']) && is_array($actions['hide_elements']) ? array_map('sanitize_key', $actions['hide_elements']) : [];
+        $showElements = isset($actions['show_elements']) && is_array($actions['show_elements']) ? array_map([__CLASS__, 'normalize_identifier'], $actions['show_elements']) : [];
+        $hideElements = isset($actions['hide_elements']) && is_array($actions['hide_elements']) ? array_map([__CLASS__, 'normalize_identifier'], $actions['hide_elements']) : [];
 
         $filterOptions = [];
         if (!empty($actions['filter_options']) && is_array($actions['filter_options'])) {
             foreach ($actions['filter_options'] as $entry) {
                 if (!is_array($entry)) continue;
                 $filterOptions[] = [
-                    'element_key' => sanitize_key($entry['element_key'] ?? ''),
-                    'allowed' => array_values(array_filter(array_map('sanitize_key', $entry['allowed'] ?? []))),
+                    'element_key' => self::normalize_identifier($entry['element_key'] ?? ''),
+                    'allowed' => array_values(array_filter(array_map([__CLASS__, 'normalize_identifier'], $entry['allowed'] ?? []))),
                 ];
             }
         }
@@ -783,8 +800,8 @@ class Schmitke_Configurator_Settings_V2 {
             foreach ($actions['disable_options'] as $entry) {
                 if (!is_array($entry)) continue;
                 $disableOptions[] = [
-                    'element_key' => sanitize_key($entry['element_key'] ?? ''),
-                    'codes' => array_values(array_filter(array_map('sanitize_key', $entry['codes'] ?? []))),
+                    'element_key' => self::normalize_identifier($entry['element_key'] ?? ''),
+                    'codes' => array_values(array_filter(array_map([__CLASS__, 'normalize_identifier'], $entry['codes'] ?? []))),
                     'reason' => [
                         'de' => sanitize_text_field($entry['reason']['de'] ?? ''),
                         'en' => sanitize_text_field($entry['reason']['en'] ?? ''),
@@ -798,8 +815,8 @@ class Schmitke_Configurator_Settings_V2 {
             'hide_elements' => $hideElements,
             'filter_options' => $filterOptions,
             'disable_options' => $disableOptions,
-            'set_required' => array_values(array_filter(array_map('sanitize_key', $actions['set_required'] ?? []))),
-            'unset_required' => array_values(array_filter(array_map('sanitize_key', $actions['unset_required'] ?? []))),
+            'set_required' => array_values(array_filter(array_map([__CLASS__, 'normalize_identifier'], $actions['set_required'] ?? []))),
+            'unset_required' => array_values(array_filter(array_map([__CLASS__, 'normalize_identifier'], $actions['unset_required'] ?? []))),
         ];
     }
 }
