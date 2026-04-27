@@ -25,8 +25,7 @@
   if(d.accordionToggleIcon) style.setProperty('--scc-toggle-icon', d.accordionToggleIcon);
   if(d.accordionToggleBgHover) style.setProperty('--scc-toggle-bg-hover', d.accordionToggleBgHover);
   if(d.accordionToggleIconHover) style.setProperty('--scc-toggle-icon-hover', d.accordionToggleIconHover);
-  if(d.primaryColor) style.setProperty('--scc-toggle-bg-open', d.primaryColor);
-  else if(d.accordionToggleBgOpen) style.setProperty('--scc-toggle-bg-open', d.accordionToggleBgOpen);
+  if(d.accordionToggleBgOpen) style.setProperty('--scc-toggle-bg-open', d.accordionToggleBgOpen);
   if(d.accordionToggleIconOpen) style.setProperty('--scc-toggle-icon-open', d.accordionToggleIconOpen);
   if(d.fontFamily)   style.setProperty('--scc-font', d.fontFamily);
   if(typeof d.buttonRadius !== 'undefined') style.setProperty('--scc-btn-radius', d.buttonRadius+'px');
