@@ -35,11 +35,11 @@
       accentColor: '#f2f2f2',
       textColor: '#111111',
       borderColor: '#e7e7e7',
-      accordionToggleBg: '#111111',
-      accordionToggleIcon: '#ffffff',
+      accordionToggleBg: '#f2f2f2',
+      accordionToggleIcon: '#111111',
       accordionToggleBgHover: '#000000',
       accordionToggleIconHover: '#ffffff',
-      accordionToggleBgOpen: '#1f6feb',
+      accordionToggleBgOpen: '#111111',
       accordionToggleIconOpen: '#ffffff',
       fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
       buttonRadius: 10,
@@ -401,15 +401,30 @@
     const grid = $('<div class="schmitke-design-grid"></div>').appendTo(body);
 
     const addColor = function(label, key){
-      $('<label>'+label+'<input type="text" class="schmitke-color"></label>')
-        .find('input')
+      const field = $('<label class="schmitke-color-field"></label>').appendTo(grid);
+      $('<span class="schmitke-color-label"></span>').text(label).appendTo(field);
+      const row = $('<span class="schmitke-color-input-row"></span>').appendTo(field);
+      const input = $('<input type="text" class="schmitke-color">')
         .val(settings.design[key] || '')
-        .on('input change', function(){
-          settings.design[key] = $(this).val();
-          updateTogglePreview();
-        })
-        .end()
-        .appendTo(grid);
+        .appendTo(row);
+      const swatch = $('<span class="schmitke-color-swatch" aria-hidden="true"></span>').appendTo(row);
+
+      function isHexColor(value){
+        return /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/.test(String(value || '').trim());
+      }
+      function updateSwatch(value){
+        const val = String(value || '').trim();
+        const valid = isHexColor(val);
+        swatch.css('backgroundColor', valid ? val : '#ffffff');
+        swatch.toggleClass('is-invalid', !valid);
+      }
+
+      updateSwatch(settings.design[key] || '');
+      input.on('input change', function(){
+        settings.design[key] = $(this).val();
+        updateSwatch($(this).val());
+        updateTogglePreview();
+      });
     };
 
     addColor('Primary Color', 'primaryColor');
@@ -452,9 +467,9 @@
       });
     }
     function updateTogglePreview(){
-      applyPreviewStyle(normal, settings.design.accordionToggleBg, settings.design.accordionToggleIcon);
+      applyPreviewStyle(normal, settings.design.accentColor, settings.design.accordionToggleIcon);
       applyPreviewStyle(hover, settings.design.accordionToggleBgHover, settings.design.accordionToggleIconHover);
-      applyPreviewStyle(open, settings.design.accordionToggleBgOpen, settings.design.accordionToggleIconOpen);
+      applyPreviewStyle(open, settings.design.primaryColor, settings.design.accordionToggleIconOpen);
     }
     updateTogglePreview();
 

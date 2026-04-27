@@ -19,6 +19,11 @@
 .schmitke-image-preview{width:90px;height:90px;border-radius:8px;object-fit:cover;background:#ddd;border:1px solid #ccc}
 .schmitke-image-buttons{display:flex;gap:6px}
 .schmitke-color{width:120px}
+.schmitke-color-field{display:flex;flex-direction:column;gap:6px}
+.schmitke-color-label{display:block}
+.schmitke-color-input-row{display:inline-flex;align-items:center;gap:8px}
+.schmitke-color-swatch{width:20px;height:20px;border:1px solid #1d2327;border-radius:4px;background:#fff;box-sizing:border-box}
+.schmitke-color-swatch.is-invalid{background:repeating-linear-gradient(135deg,#fff 0,#fff 5px,#f0f0f0 5px,#f0f0f0 10px)}
 .schmitke-option-accordion{display:flex;flex-direction:column;gap:12px}
 .schmitke-option-panel{border:1px solid #e2e2e2;border-radius:12px;background:#fdfdfd;overflow:hidden}
 .schmitke-option-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;font-size:16px;border:0;background:#fff;border-bottom:1px solid #ededed;cursor:pointer}
