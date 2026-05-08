@@ -825,6 +825,7 @@
         const isSelected = selected.has(value);
         button.toggleClass('is-selected', isSelected).attr('aria-pressed', isSelected ? 'true' : 'false');
         onChange(Array.from(selected));
+        syncInputs();
       });
     });
     return wrap;

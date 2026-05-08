@@ -247,6 +247,15 @@ function runTests() {
     ['anthrazit'],
     'Overlapping filters should still use the normal intersection'
   );
+
+  // Admin custom selectable buttons must sync the hidden JSON immediately.
+  // Otherwise the JSON fallback textarea can overwrite the latest rule filter selections on submit.
+  const adminPath = path.join(__dirname, '..', 'admin', 'configurator-v2.js');
+  const adminSource = fs.readFileSync(adminPath, 'utf8');
+  assert.ok(
+    /onChange\(Array\.from\(selected\)\);\s*syncInputs\(\);/.test(adminSource),
+    'Selectable admin lists should sync settings after button-only changes'
+  );
 }
 
 runTests();
