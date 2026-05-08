@@ -157,11 +157,41 @@
       return type === 'or' ? matches.some(Boolean) : matches.every(Boolean);
     }
 
+    function intersectSets(sets){
+      if(!sets.length) return null;
+      const result = new Set(sets[0]);
+      sets.slice(1).forEach(set=>{
+        Array.from(result).forEach(code=>{
+          if(!set.has(code)) result.delete(code);
+        });
+      });
+      return result;
+    }
+
+    function resolveFilterEntries(entries){
+      const filters = new Map();
+      entries.forEach(function(group){
+        const allSets = group.entries.map(entry=>entry.allowedSet);
+        let resolved = intersectSets(allSets);
+        if(resolved && resolved.size === 0 && group.entries.length > 1){
+          const bySpecificity = group.entries.slice().sort(function(a,b){
+            if((b.specificity || 0) !== (a.specificity || 0)){
+              return (b.specificity || 0) - (a.specificity || 0);
+            }
+            return (b.priority || 0) - (a.priority || 0);
+          });
+          resolved = new Set(bySpecificity[0].allowedSet);
+        }
+        if(resolved) filters.set(group.elementKey, resolved);
+      });
+      return filters;
+    }
+
     function evaluateRules(){
       const rules = Array.isArray(settings.rules) ? settings.rules.slice().sort((a,b)=> (a.priority||0)-(b.priority||0)) : [];
       const visibility = new Map();
       const hidden = new Set();
-      const filters = new Map();
+      const filterEntries = new Map();
       const disabled = new Map();
       const required = new Map();
       rules.forEach(rule=>{
@@ -172,15 +202,13 @@
         (actions.filter_options || []).forEach(entry=>{
           if(!entry || !entry.element_key || !Array.isArray(entry.allowed)) return;
           const entryKey = normalizeIdentifier(entry.element_key);
-          const allowedSet = new Set(entry.allowed.map(normalizeIdentifier));
-          if(filters.has(entryKey)){
-            const cur = filters.get(entryKey);
-            const intersection = new Set();
-            cur.forEach(code=>{ if(allowedSet.has(code)) intersection.add(code); });
-            filters.set(entryKey, intersection);
-          } else {
-            filters.set(entryKey, allowedSet);
-          }
+          const group = filterEntries.get(entryKey) || {elementKey: entryKey, entries: []};
+          group.entries.push({
+            allowedSet: new Set(entry.allowed.map(normalizeIdentifier)),
+            priority: rule.priority || 0,
+            specificity: rule.when && Array.isArray(rule.when.conditions) ? rule.when.conditions.length : 0
+          });
+          filterEntries.set(entryKey, group);
         });
         (actions.disable_options || []).forEach(entry=>{
           if(!entry || !entry.element_key || !Array.isArray(entry.codes)) return;
@@ -194,6 +222,7 @@
         (actions.set_required || []).forEach(k=> required.set(normalizeIdentifier(k), true));
         (actions.unset_required || []).forEach(k=> required.set(normalizeIdentifier(k), false));
       });
+      const filters = resolveFilterEntries(filterEntries);
       return {visibility, hidden, filters, disabled, required};
     }
 

@@ -141,6 +141,22 @@ function getElHelper(document) {
   return context.el;
 }
 
+
+function getRuleFilterHelpers() {
+  const configuratorPath = path.join(__dirname, '..', 'public', 'configurator-windows.js');
+  const source = fs.readFileSync(configuratorPath, 'utf8');
+  const match = source.match(/function intersectSets\([\s\S]*?\n    function evaluateRules\(\)/);
+  if (!match) throw new Error('rule filter helpers not found');
+  const helperSource = match[0].replace(/\n    function evaluateRules\(\)$/, '') + '\nthis.intersectSets = intersectSets;\nthis.resolveFilterEntries = resolveFilterEntries;';
+  const script = new vm.Script(helperSource);
+  const context = vm.createContext({ Set, Map, Array });
+  script.runInContext(context);
+  return {
+    intersectSets: context.intersectSets,
+    resolveFilterEntries: context.resolveFilterEntries,
+  };
+}
+
 function runTests() {
   const document = new Document();
   const el = getElHelper(document);
@@ -197,6 +213,40 @@ function runTests() {
   ]);
   selectForEvent.dispatchEvent({ type: 'change', target: selectForEvent });
   assert.ok(eventTriggered, 'Event handler should be invoked via addEventListener');
+
+  // Rule filter collisions should fall back to the most specific / highest-priority match.
+  const { resolveFilterEntries } = getRuleFilterHelpers();
+  const filters = resolveFilterEntries(new Map([[
+    'oeffnungsart',
+    {
+      elementKey: 'oeffnungsart',
+      entries: [
+        { allowedSet: new Set(['2dk_links_dk_rechts']), priority: 110, specificity: 1 },
+        { allowedSet: new Set(['4psk_fest_dkr', '4psk_dkl_fest']), priority: 130, specificity: 2 },
+      ],
+    },
+  ]]));
+  assert.deepStrictEqual(
+    Array.from(filters.get('oeffnungsart')).sort(),
+    ['4psk_dkl_fest', '4psk_fest_dkr'],
+    'PSK-specific filters should win if a generic filter would create an empty opening-type intersection'
+  );
+
+  const intersectedFilters = resolveFilterEntries(new Map([[
+    'farbe',
+    {
+      elementKey: 'farbe',
+      entries: [
+        { allowedSet: new Set(['weiss', 'anthrazit']), priority: 10, specificity: 1 },
+        { allowedSet: new Set(['anthrazit', 'schwarz']), priority: 20, specificity: 1 },
+      ],
+    },
+  ]]));
+  assert.deepStrictEqual(
+    Array.from(intersectedFilters.get('farbe')),
+    ['anthrazit'],
+    'Overlapping filters should still use the normal intersection'
+  );
 }
 
 runTests();

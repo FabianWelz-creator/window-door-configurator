@@ -254,6 +254,166 @@ Die Felder `Elemente zeigen`, `Elemente verstecken`, `Pflicht setzen`, `Pflicht 
 - Falls eine Option nicht auftaucht, zuerst prüfen, ob sie beim betroffenen Element wirklich mit exakt diesem Code existiert.
 - Im Admin wird ungültiges JSON jetzt direkt rot markiert; erst bei gültigem JSON wird die Regel korrekt gespeichert.
 
+
+### Praxisbeispiel: Öffnungsart nach Flügelzahl und PSK-Tür filtern
+
+Für die von dir genannten Öffnungsart-Codes reicht `filter_options`: Nicht erlaubte Optionen werden ausgeblendet und eine bereits gewählte, danach ungültige Öffnungsart wird automatisch entfernt.
+
+Voraussetzungen in deinen Optionen:
+
+- Element `fluegel` mit Optionen `1fluegel`, `2fluegel`, `3fluegel`.
+- Element `typ` mit Option `psktuer` für die PSK-Tür.
+- Element `oeffnungsart` mit den unten genannten Öffnungsart-Codes.
+
+Wenn deine Elemente anders heißen (z. B. `fluegelzahl` statt `fluegel`), musst du in den Regeln nur den jeweiligen `element_key` und die Optionscodes anpassen.
+
+#### Regeln als JSON
+
+```jsonc
+{
+  "rules": [
+    {
+      "id": "rule_oeffnungsart_1_fluegel",
+      "name": "Öffnungsart: 1-flügelige Varianten",
+      "priority": 100,
+      "when": {
+        "type": "and",
+        "conditions": [
+          { "element_key": "fluegel", "operator": "equals", "value": "1fluegel" }
+        ]
+      },
+      "then": {
+        "filter_options": [
+          {
+            "element_key": "oeffnungsart",
+            "allowed": [
+              "1drehkipplinks",
+              "1drehkipprechts",
+              "1drehlinks",
+              "1drehrechts",
+              "1kipp",
+              "1fest"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "rule_oeffnungsart_2_fluegel_standard",
+      "name": "Öffnungsart: 2-flügelige Standard-Varianten",
+      "priority": 110,
+      "when": {
+        "type": "and",
+        "conditions": [
+          { "element_key": "fluegel", "operator": "equals", "value": "2fluegel" },
+          { "element_key": "typ", "operator": "not_equals", "value": "psktuer" }
+        ]
+      },
+      "then": {
+        "filter_options": [
+          {
+            "element_key": "oeffnungsart",
+            "allowed": [
+              "2dk_links_dk_rechts",
+              "2dk_links_dreh_rechts",
+              "2dk_rechts_dreh_links",
+              "2dk_links_fest_rechts",
+              "2dk_rechts_fest_links"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "rule_oeffnungsart_3_fluegel_standard",
+      "name": "Öffnungsart: 3-flügelige Standard-Varianten",
+      "priority": 120,
+      "when": {
+        "type": "and",
+        "conditions": [
+          { "element_key": "fluegel", "operator": "equals", "value": "3fluegel" },
+          { "element_key": "typ", "operator": "not_equals", "value": "psktuer" }
+        ]
+      },
+      "then": {
+        "filter_options": [
+          {
+            "element_key": "oeffnungsart",
+            "allowed": [
+              "3dkl_dkr_dkl",
+              "3dkl_dr_fest",
+              "3dkl_fest_dkr",
+              "3dkl_fest_fest",
+              "3dkr_dl_fest",
+              "3dkr_fest_fest"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "rule_oeffnungsart_psk_2_fluegel",
+      "name": "Öffnungsart: PSK-Tür 2-flügelig",
+      "priority": 130,
+      "when": {
+        "type": "and",
+        "conditions": [
+          { "element_key": "typ", "operator": "equals", "value": "psktuer" },
+          { "element_key": "fluegel", "operator": "equals", "value": "2fluegel" }
+        ]
+      },
+      "then": {
+        "filter_options": [
+          {
+            "element_key": "oeffnungsart",
+            "allowed": [
+              "4psk_fest_dkr",
+              "4psk_dkl_fest"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "rule_oeffnungsart_psk_3_fluegel",
+      "name": "Öffnungsart: PSK-Tür 3-flügelig",
+      "priority": 140,
+      "when": {
+        "type": "and",
+        "conditions": [
+          { "element_key": "typ", "operator": "equals", "value": "psktuer" },
+          { "element_key": "fluegel", "operator": "equals", "value": "3fluegel" }
+        ]
+      },
+      "then": {
+        "filter_options": [
+          {
+            "element_key": "oeffnungsart",
+            "allowed": [
+              "4psk_fest_dkl_fest",
+              "4psk_fesf_dkr_fest"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+Wichtig: Die Standard-Regeln für `2fluegel` und `3fluegel` enthalten zusätzlich `typ not_equals psktuer`. Ohne diese Zusatzbedingung würden sich Standard- und PSK-Regeln gleichzeitig auf `oeffnungsart` auswirken. Normalerweise werden mehrere `filter_options` auf dasselbe Element als Schnittmenge angewendet; falls diese Schnittmenge leer wäre, nutzt das Frontend jetzt die spezifischste bzw. höher priorisierte Filter-Regel, damit PSK-Öffnungsarten nicht komplett verschwinden.
+
+#### Dieselben Regeln in der GUI eintragen
+
+Pro Regel legst du eine Regel-Card an:
+
+1. `ID`, `Name` und `Priorität` wie oben eintragen.
+2. Unter `Bedingungen` die genannten Bedingungen hinzufügen.
+3. Bei `filter_options` das Ziel-Element `oeffnungsart` auswählen.
+4. In der Optionsauswahl nur die Codes markieren, die in der jeweiligen `allowed`-Liste stehen.
+5. `show_elements`, `hide_elements`, `set_required`, `unset_required` und `disable_options` leer lassen.
+
+
 ## UI-Defaults
 - `sticky_summary_enabled`: aktiviert die Sticky-Summary im Desktop-Layout.
 - `accordion_enabled`: erlaubt einklappbare Elemente; Startzustand pro Element über `accordion_default_open`.
